@@ -320,23 +320,28 @@ int main(int argc, char* argv[])
   Int_t runNEntries = inputChain->GetEntries();
   Int_t ntoread = runNEntries;
 
-  ClusterHits* PVetoClusterHit;
-  ClusterHits* EVetoClusterHit;
+  ClusterHits* PVetoClusterHit = new ClusterHits();
+  ClusterHits* EVetoClusterHit = new ClusterHits();
   
-  for(Int_t EventNo=30e3;EventNo<ntoread;EventNo++){
+  ClusterStructure PVetoClusStruc;//contains a structure for vectors of clusters for each event
+  ClusterStructure EVetoClusStruc;//contains a structure for vectors of clusters for each event
+
+  for(Int_t EventNo=0;EventNo<ntoread;EventNo++){
     inputChain->GetEntry(EventNo);
-    if(EventNo%1000==0){
+    if(EventNo%100==0){
       if(Data==0)      std::cout<<"------------------\nMCEventNo "<<EventNo<<" hits "<<fPVetoMCEvent->GetNHits()<<std::endl;
       if(Data==1)      std::cout<<"------------------\nRecoEventNo "<<EventNo<<" hits "<<fPVetoRecoEvent->GetNHits()<<std::endl;
     }
     PVetoClusters.clear();
     EVetoClusters.clear();
-    ClusterStructure PVetoClusStruc;//contains a structure for vectors of clusters for each event
-    ClusterStructure EVetoClusStruc;//contains a structure for vectors of clusters for each event
+  
+    PVetoClusStruc.Clear();//contains a structure for vectors of clusters for each event
+    EVetoClusStruc.Clear();//contains a structure for vectors of clusters for each event
+
     int nhitpass=0;
     if(Data==0){
       for(Int_t ii=0;ii<fPVetoMCEvent->GetNHits();ii++){
-	PVetoClusterHit = new ClusterHits();
+	PVetoClusterHit->Clear();
 	PVetoClusterHit->SetEnergy(fPVetoMCEvent->Hit(ii)->GetEnergy());
 	PVetoClusterHit->SetTime(fPVetoMCEvent->Hit(ii)->GetTime());
 	PVetoClusterHit->SetChannelId(fPVetoMCEvent->Hit(ii)->GetChannelId());
@@ -345,7 +350,7 @@ int main(int argc, char* argv[])
       }
     }else if(Data==1){
       for(Int_t jj=0;jj<fPVetoRecoEvent->GetNHits();jj++){
-	PVetoClusterHit = new ClusterHits();
+	PVetoClusterHit->Clear();
 	PVetoClusterHit->SetEnergy(fPVetoRecoEvent->Hit(jj)->GetEnergy());
 	PVetoClusterHit->SetTime(fPVetoRecoEvent->Hit(jj)->GetTime());
 	PVetoClusterHit->SetChannelId(fPVetoRecoEvent->Hit(jj)->GetChannelId());
@@ -356,7 +361,7 @@ int main(int argc, char* argv[])
     //    continue;
     if(Data==0){
       for(Int_t ii=0;ii<fEVetoMCEvent->GetNHits();ii++){
-	EVetoClusterHit = new ClusterHits();
+	EVetoClusterHit->Clear();
 	EVetoClusterHit->SetEnergy(fEVetoMCEvent->Hit(ii)->GetEnergy());
 	EVetoClusterHit->SetTime(fEVetoMCEvent->Hit(ii)->GetTime());
 	EVetoClusterHit->SetChannelId(fEVetoMCEvent->Hit(ii)->GetChannelId());
@@ -365,7 +370,7 @@ int main(int argc, char* argv[])
       }
     }else if(Data==1){
       for(Int_t jj=0;jj<fEVetoRecoEvent->GetNHits();jj++){
-	EVetoClusterHit = new ClusterHits();
+	EVetoClusterHit->Clear();
 	EVetoClusterHit->SetEnergy(fEVetoRecoEvent->Hit(jj)->GetEnergy());
 	EVetoClusterHit->SetTime(fEVetoRecoEvent->Hit(jj)->GetTime());
 	EVetoClusterHit->SetChannelId(fEVetoRecoEvent->Hit(jj)->GetChannelId());
@@ -373,6 +378,7 @@ int main(int argc, char* argv[])
 	EVetoClusterHitVec.push_back(EVetoClusterHit);
       }
     }    
+
     for(Int_t iPHit=0;iPHit<PVetoClusterHitVec.size();iPHit++){
       //      std::cout<<" iPHit "<<iPHit<<std::endl;
       hPVetoHitEnergy->Fill(PVetoClusterHitVec[iPHit]->GetEnergy());
@@ -384,10 +390,11 @@ int main(int argc, char* argv[])
 	//	std::cout<<"Ch "<<fPVetoMCEvent->Hit(iPHit)->GetChannelId()<<std::endl;
       }
     }
-    PVetoClusStruc.HitSort();//sort hits in time
     //    continue;
+    PVetoClusStruc.HitSort();//sort hits in time
+    //continue;
     PVetoClusStruc.Clusterise();//clusterise hits
-    continue;
+        continue;
     //    std::cout<<"Merging PVeto"<<std::endl;
     PVetoClusStruc.MergeClusters();//merge adjacent, in time clusters
     PVetoClusters = PVetoClusStruc.GetClusters();//vector of clusters

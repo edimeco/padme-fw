@@ -51,11 +51,11 @@ ClusterStructure::ClusterStructure(){
   HitIndexVec.clear();
 }
 
-/*void ClusterStructure::Initialise(){
+void ClusterStructure::Clear(){
   ClusVec.clear();
   HitVec.clear();//legit???
-
-  }*/
+  HitIndexVec.clear();
+  }
 
 void ClusterStructure::Clusterise(){
   for (int ii=0; ii <HitVec.size(); ++ii ) {

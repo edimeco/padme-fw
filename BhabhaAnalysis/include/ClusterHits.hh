@@ -37,6 +37,7 @@ class ClusterHits {
 
   void  Print();
   ClusterHits(const ClusterHits&);
+  void Clear();
 
  private:
 

@@ -13,6 +13,14 @@ ClusterHits::ClusterHits()
   fTime      = 1.E9;
 }
 
+void ClusterHits::Clear(){
+  // Initialize to invalid channel
+  fChannelId = -1;
+  fEnergy    = 0.;
+  fTime      = 1.E9;
+  fPosition  = TVector3(-1.E9,-1.E9,-1.E9);
+}
+
 ClusterHits::ClusterHits(const ClusterHits& h){
   // Initialize to invalid channel
   fChannelId = h.fChannelId;

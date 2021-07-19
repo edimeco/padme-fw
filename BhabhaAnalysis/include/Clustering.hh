@@ -33,7 +33,7 @@ public:
   ClusterStructure();
   ~ClusterStructure(){};
 
-  //  void Initialise();
+  void Clear();
   
   void AddHit(ClusterHits* MyHit, int hitindex){    
     //    std::cout<<"adding hits, time "<<MyHit->GetTime()<<" hitvec size "<<HitVec.size()<<" HitIndexVec size "<<HitIndexVec.size()<<std::endl;
