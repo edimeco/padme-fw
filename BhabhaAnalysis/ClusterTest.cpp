@@ -13,6 +13,14 @@
 #include "TProfile.h"
 
 #include "TMCEvent.hh"
+#include "TRecoEvent.hh"
+
+#include "TTargetRecoEvent.hh"
+#include "TEVetoRecoEvent.hh"
+#include "TPVetoRecoEvent.hh"
+#include "THEPVetoRecoEvent.hh"
+#include "TECalRecoEvent.hh"
+#include "TSACRecoEvent.hh"
 
 #include "TTargetMCEvent.hh"
 #include "TEVetoMCEvent.hh"
@@ -20,12 +28,12 @@
 #include "THEPVetoMCEvent.hh"
 #include "TECalMCEvent.hh"
 #include "TSACMCEvent.hh"
-#include "TTPixMCEvent.hh"
+//#include "TTPixMCEvent.hh"
 #include <algorithm>
 #include "TMCVHit.hh"
 
 #include "Clustering.hh"
-
+#include "ClusterHits.hh"
 
 
 int main(int argc, char* argv[])
@@ -36,11 +44,12 @@ int main(int argc, char* argv[])
   int nevents = 0;
 
   TString inputFileName;
+  TString OutputFileName("OutputPlots.root");
   TObjArray inputFileNameList;
   struct stat filestat;
 
   // Parse options
-  while ((c = getopt (argc, argv, "i:l:n:v:h")) != -1) {
+  while ((c = getopt (argc, argv, "i:l:o:n:v:h")) != -1) {
     switch (c)
       {
       case 'i':
@@ -63,6 +72,10 @@ int main(int argc, char* argv[])
 	  fprintf(stdout,"WARNING: file list '%s' is not accessible\n",optarg);
 	}
         break;
+      case 'o':
+	//	no++;
+	OutputFileName = TString(optarg);
+	break;
       case 'n':
         if ( sscanf(optarg,"%d",&nevents) != 1 ) {
           fprintf (stderr, "Error while processing option '-n'. Wrong parameter '%s'.\n", optarg);
@@ -119,19 +132,23 @@ int main(int argc, char* argv[])
     exit(1);
   }
 
-  // Create chain of input files
-  //fprintf(stdout,"=== === === Chain of input files === === ===\n");
-  TChain* fMCChain = new TChain("MC");
-  for (Int_t iFile = 0; iFile < inputFileNameList.GetEntries(); iFile++) {
-    // fprintf(stdout,"%4d %s\n",iFile,((TObjString*)inputFileNameList.At(iFile))->GetString().Data());
-    fMCChain->AddFile(((TObjString*)inputFileNameList.At(iFile))->GetString());
-  }
-  if (fMCChain->GetEntries() == 0) {
-    perror(Form("ERROR No events found for tree 'MCEvents' in input chain"));
-    exit(1);
+  struct stat buffer;
+  if (!OutputFileName.EndsWith(".root") && !stat(OutputFileName.Data(), &buffer)) {
+    std::cout << " [PadmeReco] Output file exists and is not *.root: potentially a destructive call" << std::endl;
+    return 0;
   }
 
-  
+  TFile* OutputFile = new TFile(OutputFileName,"RECREATE");
+
+  TRecoEvent* fRecoEvent;
+  TTargetRecoEvent* fTargetRecoEvent;
+  TEVetoRecoEvent* fEVetoRecoEvent;
+  TPVetoRecoEvent* fPVetoRecoEvent;
+  THEPVetoRecoEvent* fHEPVetoRecoEvent;
+  TECalRecoEvent* fECalRecoEvent;
+  TSACRecoEvent* fSACRecoEvent;
+  //  TTPixRecoEvent* fTPixRecoEvent;
+
   TMCEvent* fMCEvent;
   TTargetMCEvent* fTargetMCEvent;
   TEVetoMCEvent* fEVetoMCEvent;
@@ -139,57 +156,137 @@ int main(int argc, char* argv[])
   THEPVetoMCEvent* fHEPVetoMCEvent;
   TECalMCEvent* fECalMCEvent;
   TSACMCEvent* fSACMCEvent;
-  TTPixMCEvent* fTPixMCEvent;
+  //TTPixMCEvent* fTPixMCEvent;
 
-  TObjArray* branches = fMCChain->GetListOfBranches();
-  for(Int_t iBranch = 0; iBranch < branches->GetEntries(); iBranch++){
-    TString branchName = ((TBranch*)(*branches)[iBranch])->GetName();
-    if (branchName=="Event") {
-      fMCEvent = new TMCEvent();
-      fMCChain->SetBranchAddress(branchName.Data(),&fMCEvent);
-    } else if (branchName=="Target") {
-      fTargetMCEvent = new TTargetMCEvent();
-      fMCChain->SetBranchAddress(branchName.Data(),&fTargetMCEvent);
-    } else if (branchName=="EVeto") {
-      fEVetoMCEvent = new TEVetoMCEvent();
-      fMCChain->SetBranchAddress(branchName.Data(),&fEVetoMCEvent);
-    } else if (branchName=="PVeto") {
-      fPVetoMCEvent = new TPVetoMCEvent();
-      fMCChain->SetBranchAddress(branchName.Data(),&fPVetoMCEvent);
-    } else if (branchName=="HEPVeto") {
-      fHEPVetoMCEvent = new THEPVetoMCEvent();
-      fMCChain->SetBranchAddress(branchName.Data(),&fHEPVetoMCEvent);
-    } else if (branchName=="ECal") {
-      fECalMCEvent = new TECalMCEvent();
-      fMCChain->SetBranchAddress(branchName.Data(),&fECalMCEvent);
-    } else if (branchName=="SAC") {
-      fSACMCEvent = new TSACMCEvent();
-      fMCChain->SetBranchAddress(branchName.Data(),&fSACMCEvent);
-    } else if (branchName=="TPix") {
-      fTPixMCEvent = new TTPixMCEvent();
-      fMCChain->SetBranchAddress(branchName.Data(),&fTPixMCEvent);
+  // Create chain of input files
+  //fprintf(stdout,"=== === === Chain of input files === === ===\n");
+  /*TChain* fMCChain = new TChain("MC");
+  for (Int_t iFile = 0; iFile < inputFileNameList.GetEntries(); iFile++) {
+    // fprintf(stdout,"%4d %s\n",iFile,((TObjString*)inputFileNameList.At(iFile))->GetString().Data());
+    fMCChain->AddFile(((TObjString*)inputFileNameList.At(iFile))->GetString());
+  }
+  if (fMCChain->GetEntries() == 0) {
+    perror(Form("ERROR No events found for tree 'MCEvents' in input chain"));
+    exit(1);
+    }*/
+
+  Int_t Data;//0=MC, 1=Data
+  Int_t nEntries;
+
+  nEntries = 0;
+  TString mcTreeName = "MC";
+  TChain*  fMCChain = new TChain(mcTreeName);
+  std::cout<<" Looking for tree named "<<mcTreeName<<std::endl;
+
+  for(Int_t iFile = 0; iFile < inputFileNameList.GetEntries(); iFile++)
+    fMCChain->AddFile(((TObjString*)inputFileNameList.At(iFile))->GetString());
+  if(fMCChain->GetEntries() == 0){
+    delete fMCChain;
+    fMCChain = 0;
+  }
+
+  TChain*  inputChain;
+
+  if(fMCChain) {
+    Data=0;
+    inputChain=fMCChain;
+    nEntries = inputChain->GetEntries();
+    std::cout<<" Tree named "<<mcTreeName<<" found with "<<nEntries<<" events"<<std::endl;
+    TObjArray* branches = inputChain->GetListOfBranches();
+    for(Int_t iBranch = 0; iBranch < branches->GetEntries(); iBranch++){
+
+      TString branchName = ((TBranch*)(*branches)[iBranch])->GetName();
+      TClass* branchObjectClass = TClass::GetClass(((TBranch*)(*branches)[iBranch])->GetClassName());
+      std::cout << "Found Branch " << branchName.Data() << " containing " << branchObjectClass->GetName() << std::endl;
+
+      if (branchName=="Event") {
+	fMCEvent = new TMCEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fMCEvent);
+      } else if (branchName=="Target") {
+	fTargetMCEvent = new TTargetMCEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fTargetMCEvent);
+      } else if (branchName=="EVeto") {
+	fEVetoMCEvent = new TEVetoMCEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fEVetoMCEvent);
+      } else if (branchName=="PVeto") {
+	fPVetoMCEvent = new TPVetoMCEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fPVetoMCEvent);
+      } else if (branchName=="HEPVeto") {
+	fHEPVetoMCEvent = new THEPVetoMCEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fHEPVetoMCEvent);
+      } else if (branchName=="ECal") {
+	fECalMCEvent = new TECalMCEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fECalMCEvent);
+      } else if (branchName=="SAC") {
+	fSACMCEvent = new TSACMCEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fSACMCEvent);
+      } 
     }
+
+  }
+  else std::cout << " Tree " << mcTreeName << " not found "<<std::endl;
+  
+  
+  // input are reco hits
+  nEntries = 0;
+  TString recoTreeName = "Events";
+  TChain*  fRecoChain = new TChain(recoTreeName);
+  std::cout<<" Looking for tree named "<<recoTreeName<<std::endl;
+  
+  for(Int_t iFile = 0; iFile < inputFileNameList.GetEntries(); iFile++){
+    //    std::cout<<"here "<<((TObjString*)inputFileNameList.At(iFile))->GetString()<<std::endl;
+    fRecoChain->AddFile(((TObjString*)inputFileNameList.At(iFile))->GetString());
+  }
+  if(fRecoChain->GetEntries() == 0){
+    delete fRecoChain;
+    fRecoChain = 0;
   }
 
-  // Get some info about the input chain
-  Int_t runNEntries = fMCChain->GetEntries();
-  //std::cout << "Found Tree 'MCEvents' with " << runNEntries << " entries" << std::endl;
-  //for(Int_t i=0; i < fMCChain->GetListOfBranches()->GetEntries(); i++) {
-  //  std::cout << "Branch " << i << " is " << fMCChain->GetListOfBranches()->At(i)->GetName() << std::endl;
-  //}
-  //TRawEvent* rawEv = new TRawEvent();
-  //fMCChain->SetBranchAddress("RawEvent",&rawEv);
- 
-  // Set number of events to read
-  Int_t ntoread = runNEntries;
-  if (nevents && nevents<runNEntries) {
-    ntoread = nevents;
-    //printf("Reading first %d events\n",ntoread);
-  }
+  if(fRecoChain) {
+    Data=1;
+    inputChain=fRecoChain;
+    nEntries = inputChain->GetEntries();
+    std::cout<<" Tree named "<<recoTreeName<<" found with "<<nEntries<<" events"<<std::endl;
+    TObjArray* branches = inputChain->GetListOfBranches();
+    std::cout << "Found Tree '" << recoTreeName << "' with " << branches->GetEntries() << " branches and " << nEntries << " entries" << std::endl;
 
+    for(Int_t iBranch = 0; iBranch < branches->GetEntries(); iBranch++){
+
+      TString branchName = ((TBranch*)(*branches)[iBranch])->GetName();
+      TClass* branchObjectClass = TClass::GetClass(((TBranch*)(*branches)[iBranch])->GetClassName());
+      std::cout << "Found Branch " << branchName.Data() << " containing " << branchObjectClass->GetName() << std::endl;
+
+      if (branchName=="RecoEvent") {
+	fRecoEvent = new TRecoEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fRecoEvent);
+      } else if (branchName=="Target_Hits") {
+	fTargetRecoEvent = new TTargetRecoEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fTargetRecoEvent);
+      } else if (branchName=="EVeto_Hits") {
+	fEVetoRecoEvent = new TEVetoRecoEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fEVetoRecoEvent);
+      } else if (branchName=="PVeto_Hits") {
+	fPVetoRecoEvent = new TPVetoRecoEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fPVetoRecoEvent);
+      } else if (branchName=="HEPVeto_Hits") {
+	fHEPVetoRecoEvent = new THEPVetoRecoEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fHEPVetoRecoEvent);
+      } else if (branchName=="ECal_Hits") {
+	fECalRecoEvent = new TECalRecoEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fECalRecoEvent);
+      } else if (branchName=="SAC_Hits") {
+	fSACRecoEvent = new TSACRecoEvent();
+	inputChain->SetBranchAddress(branchName.Data(),&fSACRecoEvent);
+	//      } else if (branchName=="TPix") {
+	//	fTPixRecoEvent = new TTPixRecoEvent();
+	//	fRecoChain->SetBranchAddress(branchName.Data(),&fTPixRecoEvent);
+      }
+
+    }
+
+  }
+  else std::cout << " Tree " << recoTreeName << " not found "<<std::endl;
   //////////////////////////////////////////////////////////////////////////////////////////////
-
-  TFile* OutputFile = new TFile("OutputPlots.root","RECREATE");
 
 //Plots to make:
 
@@ -205,48 +302,111 @@ int main(int argc, char* argv[])
   TH2F* hPVetoLengthVsUpChannel = new TH2F("PVetoLengthVsUpChannel","PVetoClusterLengthVsUpChannel",90,0,90,5,0,5);
   TH2F* hEVetoLengthVsUpChannel = new TH2F("EVetoLengthVsUpChannel","EVetoClusterLengthVsUpChannel",90,0,90,5,0,5);
   TH2F* hPVetoUpChannelVsEVetoUpChannel = new TH2F("PVetoUpChannelVsEVetoUpChannel","PVetoUpstreamVsEVetoUpstream",90,0,90,90,0,90);
+  TH1F* hSailorTDiff = new TH1F("SailorTDiff","AvgTimeDiffForSailors",200,-10,10);
+  TH1F* hCowboyTDiff = new TH1F("CowboyTDiff","AvgTimeDiffForCowboys",200,-10,10);
+  TH2F* hSailorPVetoUpChannelVsEVetoUpChannel = new TH2F("SailorsPVetoUpChannelVsEVetoUpChannel","PVetoUpstreamVsEVetoUpstreamForSailors",90,0,90,90,0,90);
+  TH2F* hCowboyPVetoUpChannelVsEVetoUpChannel = new TH2F("CowboysPVetoUpChannelVsEVetoUpChannel","PVetoUpstreamVsEVetoUpstreamForCowboys",90,0,90,90,0,90);
   
   std::vector<Cluster*> PVetoClusters;
   std::vector<Cluster*> EVetoClusters;
+
+  std::vector<ClusterHits*> PVetoClusterHitVec;
+  std::vector<ClusterHits*> EVetoClusterHitVec;
+
   int oversizedevents=0;
   int maxpvetoclusters=0;
   int maxevetoclusters=0;
-    
-   for(Int_t EventNo=0;EventNo<ntoread;EventNo++){
-    fMCChain->GetEntry(EventNo);
-    std::cout<<"EventNo "<<EventNo<<std::endl;
+     
+  Int_t runNEntries = inputChain->GetEntries();
+  Int_t ntoread = runNEntries;
+
+  ClusterHits* PVetoClusterHit;
+  ClusterHits* EVetoClusterHit;
+  
+  for(Int_t EventNo=30e3;EventNo<ntoread;EventNo++){
+    inputChain->GetEntry(EventNo);
+    if(EventNo%1000==0){
+      if(Data==0)      std::cout<<"------------------\nMCEventNo "<<EventNo<<" hits "<<fPVetoMCEvent->GetNHits()<<std::endl;
+      if(Data==1)      std::cout<<"------------------\nRecoEventNo "<<EventNo<<" hits "<<fPVetoRecoEvent->GetNHits()<<std::endl;
+    }
     PVetoClusters.clear();
     EVetoClusters.clear();
     ClusterStructure PVetoClusStruc;//contains a structure for vectors of clusters for each event
     ClusterStructure EVetoClusStruc;//contains a structure for vectors of clusters for each event
     int nhitpass=0;
-    for(Int_t iPHit=0;iPHit<fPVetoMCEvent->GetNHits();iPHit++){
-      hPVetoHitEnergy->Fill(fPVetoMCEvent->Hit(iPHit)->GetEnergy());
-      if(fPVetoMCEvent->Hit(iPHit)->GetEnergy()>0.5){
+    if(Data==0){
+      for(Int_t ii=0;ii<fPVetoMCEvent->GetNHits();ii++){
+	PVetoClusterHit = new ClusterHits();
+	PVetoClusterHit->SetEnergy(fPVetoMCEvent->Hit(ii)->GetEnergy());
+	PVetoClusterHit->SetTime(fPVetoMCEvent->Hit(ii)->GetTime());
+	PVetoClusterHit->SetChannelId(fPVetoMCEvent->Hit(ii)->GetChannelId());
+	PVetoClusterHit->SetPosition(fPVetoMCEvent->Hit(ii)->GetPosition());
+	PVetoClusterHitVec.push_back(PVetoClusterHit);
+      }
+    }else if(Data==1){
+      for(Int_t jj=0;jj<fPVetoRecoEvent->GetNHits();jj++){
+	PVetoClusterHit = new ClusterHits();
+	PVetoClusterHit->SetEnergy(fPVetoRecoEvent->Hit(jj)->GetEnergy());
+	PVetoClusterHit->SetTime(fPVetoRecoEvent->Hit(jj)->GetTime());
+	PVetoClusterHit->SetChannelId(fPVetoRecoEvent->Hit(jj)->GetChannelId());
+	PVetoClusterHit->SetPosition(fPVetoRecoEvent->Hit(jj)->GetPosition());
+	PVetoClusterHitVec.push_back(PVetoClusterHit);
+      }
+    }    
+    //    continue;
+    if(Data==0){
+      for(Int_t ii=0;ii<fEVetoMCEvent->GetNHits();ii++){
+	EVetoClusterHit = new ClusterHits();
+	EVetoClusterHit->SetEnergy(fEVetoMCEvent->Hit(ii)->GetEnergy());
+	EVetoClusterHit->SetTime(fEVetoMCEvent->Hit(ii)->GetTime());
+	EVetoClusterHit->SetChannelId(fEVetoMCEvent->Hit(ii)->GetChannelId());
+	EVetoClusterHit->SetPosition(fEVetoMCEvent->Hit(ii)->GetPosition());
+	EVetoClusterHitVec.push_back(EVetoClusterHit);
+      }
+    }else if(Data==1){
+      for(Int_t jj=0;jj<fEVetoRecoEvent->GetNHits();jj++){
+	EVetoClusterHit = new ClusterHits();
+	EVetoClusterHit->SetEnergy(fEVetoRecoEvent->Hit(jj)->GetEnergy());
+	EVetoClusterHit->SetTime(fEVetoRecoEvent->Hit(jj)->GetTime());
+	EVetoClusterHit->SetChannelId(fEVetoRecoEvent->Hit(jj)->GetChannelId());
+	EVetoClusterHit->SetPosition(fEVetoRecoEvent->Hit(jj)->GetPosition());
+	EVetoClusterHitVec.push_back(EVetoClusterHit);
+      }
+    }    
+    for(Int_t iPHit=0;iPHit<PVetoClusterHitVec.size();iPHit++){
+      //      std::cout<<" iPHit "<<iPHit<<std::endl;
+      hPVetoHitEnergy->Fill(PVetoClusterHitVec[iPHit]->GetEnergy());
+      if(PVetoClusterHitVec[iPHit]->GetEnergy()>0.5){
+	//	std::cout<<"passed"<<std::endl;
 	nhitpass++;
-	PVetoClusStruc.AddHit(fPVetoMCEvent->Hit(iPHit),iPHit);
+	PVetoClusStruc.AddHit(PVetoClusterHitVec[iPHit],iPHit);
+	//std::cout<<"iPHit "<<iPHit<<" Ch "<<fPVetoMCEvent->Hit(iPHit)->GetChannelId()<<" time "<<fPVetoMCEvent->Hit(iPHit)->GetTime()<<std::endl;
 	//	std::cout<<"Ch "<<fPVetoMCEvent->Hit(iPHit)->GetChannelId()<<std::endl;
       }
     }
- 
     PVetoClusStruc.HitSort();//sort hits in time
+    //    continue;
     PVetoClusStruc.Clusterise();//clusterise hits
-    //Problema sta in MergeClusters()
+    continue;
+    //    std::cout<<"Merging PVeto"<<std::endl;
     PVetoClusStruc.MergeClusters();//merge adjacent, in time clusters
     PVetoClusters = PVetoClusStruc.GetClusters();//vector of clusters
-    
-    for(Int_t iEHit=0;iEHit<fEVetoMCEvent->GetNHits();iEHit++){
-      hEVetoHitEnergy->Fill(fEVetoMCEvent->Hit(iEHit)->GetEnergy());
-      if(fEVetoMCEvent->Hit(iEHit)->GetEnergy()>0.5) EVetoClusStruc.AddHit(fEVetoMCEvent->Hit(iEHit),iEHit);
+
+    for(int iPClus=0;iPClus<PVetoClusters.size();iPClus++) std::cout<<"Cluster "<<iPClus<<" NHits "<<PVetoClusters[iPClus]->GetNHits()<<" Up "<<PVetoClusters[iPClus]->GetMostUpstreamChannel()<<" Down "<<PVetoClusters[iPClus]->GetMostDownstreamChannel()<<" avgT "<<PVetoClusters[iPClus]->GetAverageTime()<<std::endl;
+    //    continue;
+    for(Int_t iEHit=0;iEHit<EVetoClusterHitVec.size();iEHit++){
+      hEVetoHitEnergy->Fill(EVetoClusterHitVec[iEHit]->GetEnergy());
+      if(EVetoClusterHitVec[iEHit]->GetEnergy()>0.5) EVetoClusStruc.AddHit(EVetoClusterHitVec[iEHit],iEHit);
     }
     
     EVetoClusStruc.HitSort();
     EVetoClusStruc.Clusterise();
+    //    std::cout<<"**\nMerging EVeto"<<std::endl;
     EVetoClusStruc.MergeClusters();
     EVetoClusters = EVetoClusStruc.GetClusters();
     
     //if(EventNo%1000==0)
-      std::cout<<"Event "<<EventNo<<" PVeto Clusters "<<PVetoClusters.size()<<" EVeto Clusters "<<EVetoClusters.size()<<std::endl;
+    //      std::cout<<"Event "<<EventNo<<" PVeto Clusters "<<PVetoClusters.size()<<" EVeto Clusters "<<EVetoClusters.size()<<std::endl;
     if(PVetoClusters.size()>2||EVetoClusters.size()>2) oversizedevents++;
 
     if(PVetoClusters.size()>maxpvetoclusters) maxpvetoclusters=PVetoClusters.size();
@@ -260,7 +420,16 @@ int main(int argc, char* argv[])
       hPVetoLengthVsUpChannel->Fill(PVetoClusters[iPClus]->GetMostUpstreamChannel(),PVetoClusters[iPClus]->GetMostDownstreamChannel()-PVetoClusters[iPClus]->GetMostUpstreamChannel());
       for(Int_t iEClus=0;iEClus<EVetoClusters.size();iEClus++){
 	hAvgTimeDiff->Fill(PVetoClusters[iPClus]->GetAverageTime()-EVetoClusters[iEClus]->GetAverageTime());
+	if(EVetoClusters[iEClus]->GetMostUpstreamChannel()<(-1*PVetoClusters[iPClus]->GetMostUpstreamChannel()+120)){
+	  hSailorTDiff->Fill(PVetoClusters[iPClus]->GetAverageTime()-EVetoClusters[iEClus]->GetAverageTime());
+	  hSailorPVetoUpChannelVsEVetoUpChannel->Fill(PVetoClusters[iPClus]->GetMostUpstreamChannel(),EVetoClusters[iEClus]->GetMostUpstreamChannel());
+	}
+	else{
+	  hCowboyTDiff->Fill(PVetoClusters[iPClus]->GetAverageTime()-EVetoClusters[iEClus]->GetAverageTime());
+	  hCowboyPVetoUpChannelVsEVetoUpChannel->Fill(PVetoClusters[iPClus]->GetMostUpstreamChannel(),EVetoClusters[iEClus]->GetMostUpstreamChannel());
+	}
 	hPVetoUpChannelVsEVetoUpChannel->Fill(PVetoClusters[iPClus]->GetMostUpstreamChannel(),EVetoClusters[iEClus]->GetMostUpstreamChannel());
+	
       }
     }
 
@@ -289,6 +458,10 @@ int main(int argc, char* argv[])
    hPVetoLengthVsUpChannel->Write();
    hEVetoLengthVsUpChannel->Write();
    hPVetoUpChannelVsEVetoUpChannel->Write();
+   hSailorTDiff->Write();
+   hSailorPVetoUpChannelVsEVetoUpChannel->Write();
+   hCowboyTDiff->Write();
+   hCowboyPVetoUpChannelVsEVetoUpChannel->Write();
    exit(0);
    
 }

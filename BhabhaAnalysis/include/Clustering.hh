@@ -2,14 +2,15 @@
 #define Clustering_h 1
 #define MAXHIT 100
 
-#include "TMCVHit.hh"
+#include "ClusterHits.hh"
+#include <iostream>
 
 class Cluster{
 public:
   Cluster();
   ~Cluster(){};
 
-  int InsertHit(TMCVHit* hit, int ihit);
+  int InsertHit(ClusterHits* hit, int ihit);
   int* GetHitIndex(){return hitIndex;}
   int GetMostUpstreamChannel(){return mostUpstreamChannel;}
   int GetMostDownstreamChannel(){return mostDownstreamChannel;}
@@ -34,9 +35,12 @@ public:
 
   //  void Initialise();
   
-  void AddHit(TMCVHit* MyHit, int hitindex){    
-    HitVec.push_back(MyHit);
+  void AddHit(ClusterHits* MyHit, int hitindex){    
+    //    std::cout<<"adding hits, time "<<MyHit->GetTime()<<" hitvec size "<<HitVec.size()<<" HitIndexVec size "<<HitIndexVec.size()<<std::endl;
     HitIndexVec.push_back(hitindex);
+    //std::cout<<"size "<<HitVec.size()<<" "<<HitIndexVec.size()<<std::endl;
+    HitVec.push_back(MyHit);
+    //std::cout<<"hit pushed"<<std::endl;
   }
 
   void HitSort();
@@ -49,7 +53,7 @@ public:
   
   
 private:
-  std::vector<TMCVHit*> HitVec;
+  std::vector<ClusterHits*> HitVec;
   std::vector<Cluster*> ClusVec;
   std::vector<int> HitIndexVec;
 };
