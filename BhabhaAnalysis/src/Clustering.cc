@@ -11,15 +11,15 @@ Cluster::Cluster(){
   averagetime=0;
 }
 
-int Cluster::InsertHit(ClusterHits* hit, int ihit){
+int Cluster::InsertHit(ClusterHits hit, int ihit){
   if(nhits>MAXHIT-1){
     std::cout<<"Too many hits, exiting"<<std::endl;
     return -1;
   }
   hitIndex[nhits]=ihit;
-  if(hit->GetChannelId()<mostUpstreamChannel) mostUpstreamChannel=hit->GetChannelId();
-  if(hit->GetChannelId()>mostDownstreamChannel) mostDownstreamChannel=hit->GetChannelId();
-  averagetime = (nhits*averagetime+hit->GetTime())/(nhits+1);
+  if(hit.GetChannelId()<mostUpstreamChannel) mostUpstreamChannel=hit.GetChannelId();
+  if(hit.GetChannelId()>mostDownstreamChannel) mostDownstreamChannel=hit.GetChannelId();
+  averagetime = (nhits*averagetime+hit.GetTime())/(nhits+1);
   nhits++;
 }
 
@@ -46,12 +46,14 @@ int Cluster::AddCluster(Cluster* newcluster){
 
 
 ClusterStructure::ClusterStructure(){
+  std::cout<<"Initialising ClusterStructure"<<std::endl;
   HitVec.clear();
   ClusVec.clear();
   HitIndexVec.clear();
 }
 
 void ClusterStructure::Clear(){
+  //  std::cout<<"Clearing ClusterStructure"<<std::endl;
   ClusVec.clear();
   HitVec.clear();//legit???
   HitIndexVec.clear();
@@ -60,10 +62,12 @@ void ClusterStructure::Clear(){
 void ClusterStructure::Clusterise(){
   for (int ii=0; ii <HitVec.size(); ++ii ) {
     bool UsedHit = 0;
+    //    std::cout<<"clusvec size "<<ClusVec.size()<<std::endl;
+    //    std::cout<<"Hit "<<ii<<" ChID "<<HitVec.at(ii)->GetChannelId()<<" time "<<HitVec.at(ii)->GetTime()<<std::endl;
     for (int jj = 0; jj <ClusVec.size(); ++jj ) {
-      if(HitVec.at(ii)->GetTime()-ClusVec.at(jj)->GetAverageTime()<4&&
-	 (HitVec.at(ii)->GetChannelId()-ClusVec.at(jj)->GetMostUpstreamChannel()==-1//changed 6/7/21
-	  ||HitVec.at(ii)->GetChannelId()-ClusVec.at(jj)->GetMostDownstreamChannel()==1)){	//4->parameter
+      if(HitVec.at(ii).GetTime()-ClusVec.at(jj)->GetAverageTime()<4&&
+	 (HitVec.at(ii).GetChannelId()-ClusVec.at(jj)->GetMostUpstreamChannel()==-1//changed 6/7/21
+	  ||HitVec.at(ii).GetChannelId()-ClusVec.at(jj)->GetMostDownstreamChannel()==1)){	//4->parameter
 	ClusVec.at(jj)->InsertHit(HitVec.at(ii), HitIndexVec.at(ii));
 	UsedHit=1;
 	//	std::cout<<"clusterising jj "<<jj<<" size "<<ClusVec.at(jj)->GetNHits()<<std::endl;
@@ -75,14 +79,14 @@ void ClusterStructure::Clusterise(){
       NewCluster->InsertHit(HitVec.at(ii), HitIndexVec.at(ii));
       ClusVec.push_back(NewCluster);
     }
-  }
+  }//end hit loop
 }
 
 
 void ClusterStructure::MergeClusters(){
    Int_t noCompact = 0;
   while(noCompact==0) {
-    //    std::cout<<"ClusVec.size() "<<ClusVec.size()<<std::endl;
+    //    std::cout<<"Merging, ClusVec.size() "<<ClusVec.size()<<std::endl;
     noCompact = 1;
     int ii = 0;
     while(ii+1< ClusVec.size()){
@@ -101,7 +105,7 @@ void ClusterStructure::MergeClusters(){
 	if(std::abs(iAvgT-jAvgT)<4&&(std::abs(iUp-jDown==1)||std::abs(jUp-iDown==1))){
 	  int goodorbad = ClusVec.at(ii)->AddCluster(ClusVec.at(jj));//adds new hits to existing cluster & updates mostUpstreamChannel, mostDownstreamChannel and averagetime.
 	  //std::cout<<"gonna erase "<<jj<<std::endl;
-	  //if(jj==1) std::cout<<"TAKE NOTICE OF ME!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
+ 	  //if(jj==1) std::cout<<"TAKE NOTICE OF ME!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
 	  if(jj<ClusVec.size()-1) ClusVec.erase(ClusVec.begin()+jj);//cluster jj has already been used so get rid of it, and move all other clusters down in the vector
 	  if(jj==ClusVec.size()-1) ClusVec.pop_back();//
 	  noCompact = 0;
@@ -157,7 +161,12 @@ void ClusterStructure::MergeClusters(){
 
 void ClusterStructure::HitSort(){
 
-  std::vector<ClusterHits*> HitVecCopy(HitVec);
+  std::vector<ClusterHits> HitVecCopy;
+
+  for(int ii=0;ii<HitVec.size();ii++){
+    HitVecCopy.push_back(HitVec.at(ii));
+    // std::cout<<"HitVec[ii] Ch "<<HitVec[ii]->GetChannelId()<<" time "<<HitVec[ii]->GetTime()<<std::endl;
+  }
     
   std::vector<int> index(HitVec.size(), 0);
   
@@ -167,15 +176,17 @@ void ClusterStructure::HitSort(){
   
   sort(index.begin(), index.end(),
        [&](const int& a, const int& b) {
-	 return (HitVec[a]->GetTime() < HitVec[b]->GetTime());
+	 return (HitVec[a].GetTime() < HitVec[b].GetTime());
 	 }
        );
   
   for (int ii = 0 ; ii != index.size() ; ++ii) {
     HitVec[ii]=(HitVecCopy[index[ii]]);
+    //    std::cout<<"     HitVec[ii] Ch "<<HitVec[ii].GetChannelId()<<" time "<<HitVec[ii].GetTime();//<<std::endl;
+    //    std::cout<<" HitVecCopy[ii] Ch "<<HitVecCopy[ii].GetChannelId()<<" time "<<HitVecCopy[ii].GetTime()<<std::endl;
     HitIndexVec[ii]=index[ii];
     //    std::cout<<"ii "<<ii<<" Time[ii] "<<HitVec[ii]->GetTime()<<std::endl;
-    if(ii>0&&HitVec[ii]->GetTime()-HitVec[ii-1]->GetTime()<0) {
+    if(ii>0&&HitVec[ii].GetTime()-HitVec[ii-1].GetTime()<0) {
       std::cout<<"----------------YOU'RE IN A MESS MY FRIEND---------------"<<std::endl;
       return;
     }

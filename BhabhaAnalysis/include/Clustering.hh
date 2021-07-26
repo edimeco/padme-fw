@@ -10,7 +10,7 @@ public:
   Cluster();
   ~Cluster(){};
 
-  int InsertHit(ClusterHits* hit, int ihit);
+  int InsertHit(ClusterHits hit, int ihit);
   int* GetHitIndex(){return hitIndex;}
   int GetMostUpstreamChannel(){return mostUpstreamChannel;}
   int GetMostDownstreamChannel(){return mostDownstreamChannel;}
@@ -35,12 +35,9 @@ public:
 
   void Clear();
   
-  void AddHit(ClusterHits* MyHit, int hitindex){    
-    //    std::cout<<"adding hits, time "<<MyHit->GetTime()<<" hitvec size "<<HitVec.size()<<" HitIndexVec size "<<HitIndexVec.size()<<std::endl;
+  void AddHit(ClusterHits MyHit, int hitindex){    
     HitIndexVec.push_back(hitindex);
-    //std::cout<<"size "<<HitVec.size()<<" "<<HitIndexVec.size()<<std::endl;
     HitVec.push_back(MyHit);
-    //std::cout<<"hit pushed"<<std::endl;
   }
 
   void HitSort();
@@ -50,10 +47,10 @@ public:
   void MergeClusters();
 
   std::vector<Cluster*> GetClusters(){return ClusVec;}
-  
+  std::vector<ClusterHits> GetHitVec(){return HitVec;}
   
 private:
-  std::vector<ClusterHits*> HitVec;
+  std::vector<ClusterHits> HitVec;
   std::vector<Cluster*> ClusVec;
   std::vector<int> HitIndexVec;
 };

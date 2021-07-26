@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <vector>
 #include <sys/stat.h>
+#include <chrono>
 
 #include "TFile.h"
 #include "TChain.h"
@@ -35,104 +36,111 @@
 #include "Clustering.hh"
 #include "ClusterHits.hh"
 
+void usage(char* name){
+  std::cout << "Usage: "<< name << " [-h] [-b/-B #MaxFiles] [-i InputFile.root] [-l InputListFile.txt] [-n #MaxEvents] [-o OutputFile.root] [-s seed] [-c ConfigFileName.conf]" 
+	    << std::endl;
+}
 
 int main(int argc, char* argv[])
 {  
 
   int c;
+  int opt;
   int verbose = 0;
   int nevents = 0;
 
-  TString inputFileName;
+  TString InputFileName("InputFile.root");
   TString OutputFileName("OutputPlots.root");
-  TObjArray inputFileNameList;
+  TString InputListFileName("InputListFile.txt");
+  TString ConfFileName("config/PadmeReconstruction.cfg");
   struct stat filestat;
+  Int_t iFile = 0, NFiles = 100000, NEvt = 0;
+  UInt_t Seed = 4357;
+  Int_t nb=0, nc=0, ni=0, nl=0, nn=0, no=0, ns=0;
+  Int_t n_options_read = 0;
 
   // Parse options
-  while ((c = getopt (argc, argv, "i:l:o:n:v:h")) != -1) {
-    switch (c)
-      {
+      while ((opt = getopt(argc, argv, "b:B:c:h:i:l:n:o:s:")) != -1) {
+      n_options_read++;
+      switch (opt) {
+      case 'b':
+      case 'B':
+	nb++;
+	NFiles = TString(optarg).Atoi();
+	break;
+      case 'c':
+	nc++;
+	ConfFileName = TString(optarg);
+	break;
+      case 'h':
+	usage(argv[0]);
+	return 0;
       case 'i':
-        inputFileNameList.Add(new TObjString(optarg));
-	//        fprintf(stdout,"Added input data file '%s'\n",optarg);
+	ni++;
+	InputFileName = TString(optarg);
 	break;
       case 'l':
-	if ( stat(Form(optarg),&filestat) == 0 ) {
-	  //	  fprintf(stdout,"Reading list of input files from '%s'\n",optarg);
-	  std::ifstream inputList(optarg);
-	  while( inputFileName.ReadLine(inputList) ){
-	    if ( stat(Form(inputFileName.Data()),&filestat) == 0 ) {
-	      inputFileNameList.Add(new TObjString(inputFileName.Data()));
-	      //	      fprintf(stdout,"Added input data file '%s'\n",inputFileName.Data());
-	    } else {
-	      fprintf(stdout,"WARNING: file '%s' is not accessible\n",inputFileName.Data());
-	    }
-	  }
-	} else {
-	  fprintf(stdout,"WARNING: file list '%s' is not accessible\n",optarg);
-	}
-        break;
-      case 'o':
-	//	no++;
-	OutputFileName = TString(optarg);
+	nl++;
+	InputListFileName = TString(optarg);
 	break;
       case 'n':
-        if ( sscanf(optarg,"%d",&nevents) != 1 ) {
-          fprintf (stderr, "Error while processing option '-n'. Wrong parameter '%s'.\n", optarg);
-          exit(1);
-        }
-        if (nevents<0) {
-          fprintf (stderr, "Error while processing option '-n'. Required %d events (must be >=0).\n", nevents);
-          exit(1);
-        }
-	if (nevents) {
-	  fprintf(stdout,"Will read first %d events in file\n",nevents);
-	} else {
-	  fprintf(stdout,"Will read all events in file\n");
-	}
-        break;
-      case 'v':
-        if ( sscanf(optarg,"%d",&verbose) != 1 ) {
-          fprintf (stderr, "Error while processing option '-v'. Wrong parameter '%s'.\n", optarg);
-          exit(1);
-        }
-        if (verbose<0) {
-          fprintf (stderr, "Error while processing option '-v'. Verbose level set to %d (must be >=0).\n", verbose);
-          exit(1);
-        }
-        fprintf(stdout,"Set verbose level to %d\n",verbose);
-        break;
-      case 'h':
-        fprintf(stdout,"\nReadTest [-i input root file] [-l list of input files] [-v verbosity] [-h]\n\n");
-        fprintf(stdout,"  -i: define an input file in root format\n");
-        fprintf(stdout,"  -l: define a list of input files\n");
-        fprintf(stdout,"  -n: define number of events to read from input file (0: all events)\n");
-        fprintf(stdout,"  -v: define verbose level\n");
-        fprintf(stdout,"  -h: show this help message and exit\n\n");
-        exit(0);
-      case '?':
-        if (optopt == 'v') {
-          // verbose with no argument: just enable at minimal level
-          verbose = 1;
-          break;
-        } else if (optopt == 'i' || optopt == 'l' || optopt == 'o')
-          fprintf (stderr, "Option -%c requires an argument.\n", optopt);
-        else if (isprint(optopt))
-          fprintf (stderr, "Unknown option `-%c'.\n", optopt);
-        else
-          fprintf (stderr,"Unknown option character `\\x%x'.\n",optopt);
-        exit(1);
+	nn++;
+	NEvt = TString(optarg).Atoi();
+	break;
+      case 'o':
+	no++;
+	OutputFileName = TString(optarg);
+	break;
+      case 's':
+	ns++;
+	Seed = (UInt_t)TString(optarg).Atoi();
+	break;
       default:
-        abort();
+	usage(argv[0]);
+	return 0;
       }
-  }
+    }
 
-  if ( inputFileNameList.GetEntries() == 0 ) {
-    perror(Form("ERROR No Input File specified"));
-    exit(1);
-  }
 
-  struct stat buffer;
+    // Sanity checks on the input
+    if (!n_options_read || NEvt<0 || NFiles<=0) {
+      usage(argv[0]);
+      return 0;
+    }
+    if (nb>1 || nc>1 || ni>1 || nl>1 || nn>1 || no>1 || ns>0) {
+      std::cerr << "[PadmeReco] Multiple arguments of the same type are not allowed" << std::endl;
+      return 0;
+    }
+
+    // Protection against potentially incorrect output filenames
+    struct stat buffer;
+    if (!OutputFileName.EndsWith(".root") && !stat(OutputFileName.Data(), &buffer)) {
+      std::cout << " [PadmeReco] Output file exists and is not *.root: potentially a destructive call" << std::endl;
+      return 0;
+    }
+
+    std::vector<string> file_names;
+    TObjArray InputFileNameList;
+    if(stat(Form(InputListFileName.Data()), &filestat) == 0) { //-l option used
+      std::ifstream InputList(InputListFileName.Data());
+      while(InputFileName.ReadLine(InputList) && iFile < NFiles){
+	InputFileNameList.Add(new TObjString(InputFileName.Data()));
+	iFile++;
+      }
+    } else if(InputFileName.CompareTo("")) { //-i option used
+      InputFileNameList.Add(new TObjString(InputFileName.Data()));
+    }
+
+    if(InputFileNameList.GetEntries() == 0) {
+        perror(Form("No Input File"));
+        exit(1);
+    }
+
+    for(unsigned int ij=0;ij<file_names.size();++ij){
+      std::cout<<file_names[ij]<<std::endl;
+    }
+
+
   if (!OutputFileName.EndsWith(".root") && !stat(OutputFileName.Data(), &buffer)) {
     std::cout << " [PadmeReco] Output file exists and is not *.root: potentially a destructive call" << std::endl;
     return 0;
@@ -178,8 +186,8 @@ int main(int argc, char* argv[])
   TChain*  fMCChain = new TChain(mcTreeName);
   std::cout<<" Looking for tree named "<<mcTreeName<<std::endl;
 
-  for(Int_t iFile = 0; iFile < inputFileNameList.GetEntries(); iFile++)
-    fMCChain->AddFile(((TObjString*)inputFileNameList.At(iFile))->GetString());
+  for(Int_t iFile = 0; iFile < InputFileNameList.GetEntries(); iFile++)
+    fMCChain->AddFile(((TObjString*)InputFileNameList.At(iFile))->GetString());
   if(fMCChain->GetEntries() == 0){
     delete fMCChain;
     fMCChain = 0;
@@ -233,9 +241,9 @@ int main(int argc, char* argv[])
   TChain*  fRecoChain = new TChain(recoTreeName);
   std::cout<<" Looking for tree named "<<recoTreeName<<std::endl;
   
-  for(Int_t iFile = 0; iFile < inputFileNameList.GetEntries(); iFile++){
+  for(Int_t iFile = 0; iFile < InputFileNameList.GetEntries(); iFile++){
     //    std::cout<<"here "<<((TObjString*)inputFileNameList.At(iFile))->GetString()<<std::endl;
-    fRecoChain->AddFile(((TObjString*)inputFileNameList.At(iFile))->GetString());
+    fRecoChain->AddFile(((TObjString*)InputFileNameList.At(iFile))->GetString());
   }
   if(fRecoChain->GetEntries() == 0){
     delete fRecoChain;
@@ -310,100 +318,120 @@ int main(int argc, char* argv[])
   std::vector<Cluster*> PVetoClusters;
   std::vector<Cluster*> EVetoClusters;
 
-  std::vector<ClusterHits*> PVetoClusterHitVec;
-  std::vector<ClusterHits*> EVetoClusterHitVec;
+  std::vector<ClusterHits> PVetoClusterHitVec;//Contains all the PVetoHits to be clusterised per event
+  std::vector<ClusterHits> EVetoClusterHitVec;//Vector has to contain fixed hits, not pointers, because otherwise changing the hit properties of the hit pointer changes the properties of all hits in the vector
 
   int oversizedevents=0;
   int maxpvetoclusters=0;
   int maxevetoclusters=0;
      
   Int_t runNEntries = inputChain->GetEntries();
-  Int_t ntoread = runNEntries;
+  Int_t ntoread;
+  if(NEvt==0) ntoread = runNEntries;
+  else ntoread = NEvt;
 
-  ClusterHits* PVetoClusterHit = new ClusterHits();
-  ClusterHits* EVetoClusterHit = new ClusterHits();
+  ClusterHits PVetoClusterHit;// = new ClusterHits();
+  ClusterHits EVetoClusterHit;// = new ClusterHits();
   
   ClusterStructure PVetoClusStruc;//contains a structure for vectors of clusters for each event
   ClusterStructure EVetoClusStruc;//contains a structure for vectors of clusters for each event
 
+  auto const start       = std::chrono::system_clock::now();
+
+  std::vector<std::chrono::time_point<std::chrono::system_clock> > Times;
+
   for(Int_t EventNo=0;EventNo<ntoread;EventNo++){
+
     inputChain->GetEntry(EventNo);
-    if(EventNo%100==0){
-      if(Data==0)      std::cout<<"------------------\nMCEventNo "<<EventNo<<" hits "<<fPVetoMCEvent->GetNHits()<<std::endl;
-      if(Data==1)      std::cout<<"------------------\nRecoEventNo "<<EventNo<<" hits "<<fPVetoRecoEvent->GetNHits()<<std::endl;
-    }
+
     PVetoClusters.clear();
     EVetoClusters.clear();
   
     PVetoClusStruc.Clear();//contains a structure for vectors of clusters for each event
     EVetoClusStruc.Clear();//contains a structure for vectors of clusters for each event
 
+    PVetoClusterHitVec.clear();
+    EVetoClusterHitVec.clear();
+
+    if(EventNo%100==0){
+      Times.push_back(std::chrono::system_clock::now());
+      if(Data==0)      std::cout<<"------------------\nMCEventNo "<<EventNo<<" hits "<<fPVetoMCEvent->GetNHits()<<std::endl;
+      if(Data==1)      std::cout<<"------------------\nRecoEventNo "<<EventNo<<" hits "<<fPVetoRecoEvent->GetNHits()<<std::endl;
+    }
+
     int nhitpass=0;
-    if(Data==0){
+    if(Data==0){//if using MC truth
       for(Int_t ii=0;ii<fPVetoMCEvent->GetNHits();ii++){
-	PVetoClusterHit->Clear();
-	PVetoClusterHit->SetEnergy(fPVetoMCEvent->Hit(ii)->GetEnergy());
-	PVetoClusterHit->SetTime(fPVetoMCEvent->Hit(ii)->GetTime());
-	PVetoClusterHit->SetChannelId(fPVetoMCEvent->Hit(ii)->GetChannelId());
-	PVetoClusterHit->SetPosition(fPVetoMCEvent->Hit(ii)->GetPosition());
+	PVetoClusterHit.Clear();
+	//	std::cout<<"ChID "<<PVetoClusterHit.GetChannelId()<<" time "<<PVetoClusterHit.GetTime()<<std::endl;
+	PVetoClusterHit.SetEnergy(fPVetoMCEvent->Hit(ii)->GetEnergy());
+	PVetoClusterHit.SetTime(fPVetoMCEvent->Hit(ii)->GetTime());
+	PVetoClusterHit.SetChannelId(fPVetoMCEvent->Hit(ii)->GetChannelId());
+	PVetoClusterHit.SetPosition(fPVetoMCEvent->Hit(ii)->GetPosition());
 	PVetoClusterHitVec.push_back(PVetoClusterHit);
+	//	std::cout<<"Making the Cluster Hits ChID "<<PVetoClusterHit.GetChannelId()<<" time "<<PVetoClusterHit.GetTime()<<std::endl;
       }
-    }else if(Data==1){
+    }else if(Data==1){//if using reco file
       for(Int_t jj=0;jj<fPVetoRecoEvent->GetNHits();jj++){
-	PVetoClusterHit->Clear();
-	PVetoClusterHit->SetEnergy(fPVetoRecoEvent->Hit(jj)->GetEnergy());
-	PVetoClusterHit->SetTime(fPVetoRecoEvent->Hit(jj)->GetTime());
-	PVetoClusterHit->SetChannelId(fPVetoRecoEvent->Hit(jj)->GetChannelId());
-	PVetoClusterHit->SetPosition(fPVetoRecoEvent->Hit(jj)->GetPosition());
+	PVetoClusterHit.Clear();
+	PVetoClusterHit.SetEnergy(fPVetoRecoEvent->Hit(jj)->GetEnergy());
+	PVetoClusterHit.SetTime(fPVetoRecoEvent->Hit(jj)->GetTime());
+	PVetoClusterHit.SetChannelId(fPVetoRecoEvent->Hit(jj)->GetChannelId());
+	PVetoClusterHit.SetPosition(fPVetoRecoEvent->Hit(jj)->GetPosition());
 	PVetoClusterHitVec.push_back(PVetoClusterHit);
+	//	std::cout<<"Making the Cluster Hits ChID  \n jj "<<PVetoClusterHit.GetChannelId()<<" time "<<PVetoClusterHit.GetTime()<<" vec size "<<PVetoClusterHitVec.size()<<std::endl;
+	//	std::cout<<"Checking the vector Hits "<<std::endl;
+	//	for(int kk=0; kk<jj;kk++){
+	//std::cout<<"kk "<<kk<<"  ChID "<<PVetoClusterHitVec[kk].GetChannelId()<<" time "<<PVetoClusterHitVec[kk].GetTime()<<std::endl;
+	//}
       }
     }    
     //    continue;
     if(Data==0){
       for(Int_t ii=0;ii<fEVetoMCEvent->GetNHits();ii++){
-	EVetoClusterHit->Clear();
-	EVetoClusterHit->SetEnergy(fEVetoMCEvent->Hit(ii)->GetEnergy());
-	EVetoClusterHit->SetTime(fEVetoMCEvent->Hit(ii)->GetTime());
-	EVetoClusterHit->SetChannelId(fEVetoMCEvent->Hit(ii)->GetChannelId());
-	EVetoClusterHit->SetPosition(fEVetoMCEvent->Hit(ii)->GetPosition());
+	EVetoClusterHit.Clear();
+	EVetoClusterHit.SetEnergy(fEVetoMCEvent->Hit(ii)->GetEnergy());
+	EVetoClusterHit.SetTime(fEVetoMCEvent->Hit(ii)->GetTime());
+	EVetoClusterHit.SetChannelId(fEVetoMCEvent->Hit(ii)->GetChannelId());
+	EVetoClusterHit.SetPosition(fEVetoMCEvent->Hit(ii)->GetPosition());
 	EVetoClusterHitVec.push_back(EVetoClusterHit);
       }
     }else if(Data==1){
       for(Int_t jj=0;jj<fEVetoRecoEvent->GetNHits();jj++){
-	EVetoClusterHit->Clear();
-	EVetoClusterHit->SetEnergy(fEVetoRecoEvent->Hit(jj)->GetEnergy());
-	EVetoClusterHit->SetTime(fEVetoRecoEvent->Hit(jj)->GetTime());
-	EVetoClusterHit->SetChannelId(fEVetoRecoEvent->Hit(jj)->GetChannelId());
-	EVetoClusterHit->SetPosition(fEVetoRecoEvent->Hit(jj)->GetPosition());
+	EVetoClusterHit.Clear();
+	EVetoClusterHit.SetEnergy(fEVetoRecoEvent->Hit(jj)->GetEnergy());
+	EVetoClusterHit.SetTime(fEVetoRecoEvent->Hit(jj)->GetTime());
+	EVetoClusterHit.SetChannelId(fEVetoRecoEvent->Hit(jj)->GetChannelId());
+	EVetoClusterHit.SetPosition(fEVetoRecoEvent->Hit(jj)->GetPosition());
 	EVetoClusterHitVec.push_back(EVetoClusterHit);
       }
     }    
-
+    //continue;
     for(Int_t iPHit=0;iPHit<PVetoClusterHitVec.size();iPHit++){
-      //      std::cout<<" iPHit "<<iPHit<<std::endl;
-      hPVetoHitEnergy->Fill(PVetoClusterHitVec[iPHit]->GetEnergy());
-      if(PVetoClusterHitVec[iPHit]->GetEnergy()>0.5){
-	//	std::cout<<"passed"<<std::endl;
+      hPVetoHitEnergy->Fill(PVetoClusterHitVec[iPHit].GetEnergy());
+      //      std::cout<<"Reading Cluster Hits ChID "<<PVetoClusterHitVec[iPHit].GetChannelId()<<" time "<<PVetoClusterHitVec[iPHit].GetTime()<<std::endl;
+      if(PVetoClusterHitVec[iPHit].GetEnergy()>0.5){
 	nhitpass++;
 	PVetoClusStruc.AddHit(PVetoClusterHitVec[iPHit],iPHit);
-	//std::cout<<"iPHit "<<iPHit<<" Ch "<<fPVetoMCEvent->Hit(iPHit)->GetChannelId()<<" time "<<fPVetoMCEvent->Hit(iPHit)->GetTime()<<std::endl;
-	//	std::cout<<"Ch "<<fPVetoMCEvent->Hit(iPHit)->GetChannelId()<<std::endl;
       }
     }
-    //    continue;
+    for(Int_t iPHit=0;iPHit<PVetoClusterHitVec.size();iPHit++){
+      //std::cout<<"before "<<iPHit<<" "<<PVetoClusterHitVec[iPHit].GetTime()<<std::endl;
+    }
     PVetoClusStruc.HitSort();//sort hits in time
-    //continue;
+    /*    std::vector<ClusterHits> AfterVec = PVetoClusStruc.GetHitVec();
+    for(Int_t iPHit=0;iPHit<AfterVec.size();iPHit++){
+      std::cout<<"after "<<iPHit<<" "<<AfterVec[iPHit].GetTime()<<std::endl;
+      }*/
     PVetoClusStruc.Clusterise();//clusterise hits
-        continue;
-    //    std::cout<<"Merging PVeto"<<std::endl;
     PVetoClusStruc.MergeClusters();//merge adjacent, in time clusters
     PVetoClusters = PVetoClusStruc.GetClusters();//vector of clusters
 
-    for(int iPClus=0;iPClus<PVetoClusters.size();iPClus++) std::cout<<"Cluster "<<iPClus<<" NHits "<<PVetoClusters[iPClus]->GetNHits()<<" Up "<<PVetoClusters[iPClus]->GetMostUpstreamChannel()<<" Down "<<PVetoClusters[iPClus]->GetMostDownstreamChannel()<<" avgT "<<PVetoClusters[iPClus]->GetAverageTime()<<std::endl;
+    //for(int iPClus=0;iPClus<PVetoClusters.size();iPClus++) std::cout<<"Cluster "<<iPClus<<" NHits "<<PVetoClusters[iPClus]->GetNHits()<<" Up "<<PVetoClusters[iPClus]->GetMostUpstreamChannel()<<" Down "<<PVetoClusters[iPClus]->GetMostDownstreamChannel()<<" avgT "<<PVetoClusters[iPClus]->GetAverageTime()<<std::endl;
     //    continue;
     for(Int_t iEHit=0;iEHit<EVetoClusterHitVec.size();iEHit++){
-      hEVetoHitEnergy->Fill(EVetoClusterHitVec[iEHit]->GetEnergy());
-      if(EVetoClusterHitVec[iEHit]->GetEnergy()>0.5) EVetoClusStruc.AddHit(EVetoClusterHitVec[iEHit],iEHit);
+      hEVetoHitEnergy->Fill(EVetoClusterHitVec[iEHit].GetEnergy());
+      if(EVetoClusterHitVec[iEHit].GetEnergy()>0.5) EVetoClusStruc.AddHit(EVetoClusterHitVec[iEHit],iEHit);
     }
     
     EVetoClusStruc.HitSort();
@@ -469,7 +497,19 @@ int main(int argc, char* argv[])
    hSailorPVetoUpChannelVsEVetoUpChannel->Write();
    hCowboyTDiff->Write();
    hCowboyPVetoUpChannelVsEVetoUpChannel->Write();
+
+   auto const stop        = std::chrono::system_clock::now();
+   auto const duration =stop-start;
+   auto const duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+   //                                                               ^^^^^^^^^^^^
+   std::cout << duration_ms.count()<<std::endl;
+
+   for(int ii=0;ii<Times.size()-1;ii++) {
+     auto const duration2 =Times[ii+1]-Times[ii];
+     auto const duration2_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration2);
+     std::cout << "loop duration "<<duration2_ms.count()<<std::endl;
+   }
+
    exit(0);
-   
 }
 
