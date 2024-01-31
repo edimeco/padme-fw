@@ -9,9 +9,9 @@
 *.pyc
 *.dump
 *.root
+**/*.root
 *.pcm
 *.heprep
-run_*
 PersistencyDict.cc
 PersistencyDict.h
 .*.swp
@@ -21,3 +21,8 @@ tmp/
 lib/
 bin/
 *.dSYM
+UserAnalysis/*.py
+PadmeReco/*.py
+**/.nfs*
+UserAnalysis/run512/
+

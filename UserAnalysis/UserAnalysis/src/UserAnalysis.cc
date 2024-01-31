@@ -2,13 +2,18 @@
 #include <TGraph.h>
 #include <TGraphErrors.h>
 #include "UserAnalysis.hh"
+#include "NPoTAnalysis.hh"
+#include "GeneralInfo.hh" //TS
+#include "ECalSel.hh" //TS
+#include "ETagAn.hh" //TS
 #include "ECalCalib.hh"
 #include "NPoTAnalysis.hh" //MR
-#include "IsGGAnalysis.hh" //MR
+//#include "IsGGAnalysis.hh" //MR
 #include "Is22GGAnalysis.hh" //MR
-#include "Is3GAnalysis.hh" //MR
+//#include "Is3GAnalysis.hh" //MR
 #include "ETagAnalysis.hh" //AF
 #include "MCTruth.hh"     //MR
+#include "MCTruthECal.hh"     //EDM
 #include "HistoSvc.hh"
 #include "TempCorr.hh"
 
@@ -25,37 +30,58 @@ UserAnalysis::UserAnalysis(TString cfgFile, Int_t verbose)
   fECalCalib    = ECalCalib::GetInstance();
   //  fMCTruth      = new MCTruth(cfgFile,fVerbose);
   fMCTruth      = MCTruth::GetInstance();
+  fMCTruthECal      = MCTruthECal::GetInstance();
+
 
   //Physics analysis last reviewed by M. Raggi 05/22
   fNPoTAnalysis = new NPoTAnalysis(cfgFile,fVerbose);
-  fIsGGAnalysis = new IsGGAnalysis(cfgFile,fVerbose);
+  fGeneralInfo = GeneralInfo::GetInstance();
+  fECalSel = ECalSel::GetInstance();
+  fETagAn  = ETagAn::GetInstance();
+  //  fIsGGAnalysis = new IsGGAnalysis(cfgFile,fVerbose);
   fETagAnalysis = new ETagAnalysis(cfgFile,fVerbose);
   fIs22GGAnalysis = new Is22GGAnalysis(cfgFile,fVerbose);
-  fIs3GAnalysis = new Is3GAnalysis(cfgFile,fVerbose);
+//  fIs3GAnalysis = new Is3GAnalysis(cfgFile,fVerbose);
+
+  fETagHitsAvail = kFALSE;
+  fETagClusAvail = kFALSE;
 }
 
 UserAnalysis::~UserAnalysis(){
   delete fCfgParser;
   delete fECalCalib;
   delete fNPoTAnalysis;
-  delete fIsGGAnalysis;
+  delete fGeneralInfo;
+  delete fECalSel;
+  delete fETagAn;
+  //  delete fIsGGAnalysis;
   delete fETagAnalysis;
   delete fIs22GGAnalysis;
-  delete fIs3GAnalysis;
+//  delete fIs3GAnalysis;
 }
 
-Bool_t UserAnalysis::Init(PadmeAnalysisEvent* event){
+Bool_t UserAnalysis::Init(PadmeAnalysisEvent* event, Bool_t fHistoMode, TString InputHistofile, Int_t DBRunNumber){
+  if (event->ETagRecoEvent) fETagHitsAvail = kTRUE; // ETag hits are available
+  if (event->ETagRecoCl) fETagClusAvail = kTRUE; // ETag hits are available
+
+
   if (fVerbose) printf("---> Initializing UserAnalysis\n");
   fEvent = event;
   InitHistos();
   fECalCalib->Init();
 
-  if(fEvent->MCTruthEvent) fMCTruth->Init(fEvent);
+  if(fEvent->MCTruthEvent){
+     fMCTruth->Init(fEvent);
+     fMCTruthECal->Init(fEvent);
+  }
   fNPoTAnalysis->Init(fEvent);
-  fIsGGAnalysis->Init(fEvent);
-  fETagAnalysis->Init(fEvent);
+  fGeneralInfo->Init(fEvent, DBRunNumber);
+  fECalSel->Init(fEvent,fHistoMode,InputHistofile);
+  if (fETagHitsAvail) fETagAn->Init(fEvent);
+  //  fIsGGAnalysis->Init(fEvent);
+  if (fETagHitsAvail && fETagClusAvail)   fETagAnalysis->Init(fEvent);
   fIs22GGAnalysis->Init(fEvent);
-  fIs3GAnalysis->Init(fEvent);
+//  fIs3GAnalysis->Init(fEvent);
   return true;
 }
 
@@ -90,10 +116,16 @@ Bool_t UserAnalysis::Process(){
   for (int i=0;i<8;i++) { if (trigMask & (1 << i)) fHS->FillHistoList("MyHistos","Triggers",i,1.); }
 
   fNPoTAnalysis->Process();
-  fIsGGAnalysis->Process();
+  if(fEvent->MCTruthEvent) fMCTruthECal->Process();
+  //  if(fNPoTAnalysis->GetNPoT()<5000.) return true;   //cut on events with less than 5000 POTs //Commented by Beth 20/9/21 for X17 analysis
+  fGeneralInfo->Process();
+  fECalCalib->Process(fEvent);
+  fECalSel->Process();
+  if (fETagHitsAvail) fETagAn->Process();
+  //  fIsGGAnalysis->Process();
   fIs22GGAnalysis->Process();
-  fIs3GAnalysis->Process();   
-  fETagAnalysis->Process();
+//  fIs3GAnalysis->Process();   
+  if (fETagHitsAvail && fETagClusAvail) fETagAnalysis->Process();
 
   /*
   for(int ipv = 0;ipv <  fEvent->PVetoRecoEvent->GetNHits(); ipv++) {
@@ -149,13 +181,19 @@ Bool_t UserAnalysis::Process(){
 Bool_t UserAnalysis::Finalize()
 {
   if (fVerbose) printf("---> Finalizing UserAnalysis\n");
-  if(fEvent->MCTruthEvent) fMCTruth->Finalize();
+  if(fEvent->MCTruthEvent){
+     fMCTruth->Finalize();
+     fMCTruthECal->Finalize();
+
+  }
   fNPoTAnalysis->Finalize();
-  fIsGGAnalysis->Finalize();
-  fETagAnalysis->Finalize();
+  fECalSel->Finalize();
+  if (fETagHitsAvail) fETagAn->Finalize();
+  //  fIsGGAnalysis->Finalize();
+  if (fETagHitsAvail && fETagClusAvail)  fETagAnalysis->Finalize();
   fIs22GGAnalysis->Finalize();
-  fIs3GAnalysis->Finalize();
-  
+//  fIs3GAnalysis->Finalize();
+
 //  // TGraph example
 //  Double_t x[5] = {1.,2.,3.,4.,5.};
 //  Double_t xe[5] = {.1,.1,.2,.2,.3};
