@@ -82,13 +82,13 @@ Bool_t MCTruthECal::InitHistos(){
   //Histograms for MCTruthECal information
   Int_t    NBinE=600.;
   Double_t MaxE=NBinE;
-  static int NprocessAvailable = 5;
-  TString processIDs[NprocessAvailable]={"eIoni", "eBrem", "annihil", "Bhabha", "NoVtx"};
+  static int NprocessAvailable = 6;
+  TString processIDs[NprocessAvailable]={"eIoni", "eBrem", "annihil", "Bhabha","Babayaga","NoVtx"};
 
   fHS->CreateList("MCTruthECal");
   fHS->BookHistoList("MCTruthECal","DTCluVtx",100,-10.,10.); 
   fHS->BookHistoList("MCTruthECal","NPcleOut",10,0,10);	
-  fHS->BookHistoList("MCTruthECal","ProcessID",4,-0.5,3.5);	
+  fHS->BookHistoList("MCTruthECal","ProcessID",6,-0.5,5.5);	
   fHS->BookHistoList("MCTruthECal","dRCluVtx",600,0.,TMath::Sqrt(((fXMax+fXMin)*(fXMax+fXMin))+((fYMax+fYMin)*(fYMax+fYMin))));
   fHS->BookHistoList("MCTruthECal","dXCluVtx",600,-2.*fXMax,2.*fXMax);
   fHS->BookHistoList("MCTruthECal","dYCluVtx",600,-2.*fYMax,2.*fYMax);
@@ -108,6 +108,7 @@ Bool_t MCTruthECal::InitHistos(){
   fHS->BookHistoList("MCTruthECal","EbeamE1E0Ass_annihil",200,-50,50);
   fHS->BookHistoList("MCTruthECal","EbeamE1E0Ass_eIoni",200,-50,50);
   fHS->BookHistoList("MCTruthECal","EbeamE1E0Ass_Bhabha",200,-50,50);
+  fHS->BookHistoList("MCTruthECal","EbeamE1E0Ass_Babayaga",200,-50,50);
 
   fHS->BookHistoList("MCTruthECal","EPcle_eBrem",100,0,400);
   fHS->BookHistoList("MCTruthECal","EPcleAss_eBrem",100,0,400);
@@ -116,7 +117,9 @@ Bool_t MCTruthECal::InitHistos(){
   fHS->BookHistoList("MCTruthECal","EPcle_eIoni",100,0,400);
   fHS->BookHistoList("MCTruthECal","EPcleAss_eIoni",100,0,400);
   fHS->BookHistoList("MCTruthECal","EPcle_Bhabha",100,0,400);
+  fHS->BookHistoList("MCTruthECal","EPcle_Babayaga",100,0,400);
   fHS->BookHistoList("MCTruthECal","EPcleAss_Bhabha",100,0,400);
+  fHS->BookHistoList("MCTruthECal","EPcleAss_Babayaga",100,0,400);
   
   fHS->BookHisto2List("MCTruthECal","XYmap",30,0,30,30,0,30);
   fHS->BookHisto2List("MCTruthECal","XYmapEw",30,0,30,30,0,30);
@@ -125,6 +128,7 @@ Bool_t MCTruthECal::InitHistos(){
   fHS->BookHistoList("MCTruthECal","dECluVtx",400,-400,400);
   fHS->BookHisto2List("MCTruthECal","dEvsECluVtx",500,0,1000,400,-400,400);
   hAnnihil = fHS->BookHisto2List("MCTruthECal","dEvsECluVtx_annihil",400,0,400,400,-400,400);
+  fHS->BookHisto2List("MCTruthECal","dEvsECluVtx_Babayaga",400,0,400,400,-400,400);
   fHS->BookHisto2List("MCTruthECal","dEvsECluVtx_Bhabha",1000,0,400,400,-400,400);
   hBrem    = fHS->BookHisto2List("MCTruthECal","dEvsECluVtx_eBrem",400,0,400,400,-400,400);
   heIoni   = fHS->BookHisto2List("MCTruthECal","dEvsECluVtx_eIoni",400,0,400,400,-400,400);
@@ -145,9 +149,14 @@ Bool_t MCTruthECal::InitHistos(){
   fHS->BookHistoList("MCTruthECal",Form("DeltaCOGY_Bhabha"), 600, -300, 300);
   fHS->BookHisto2List("MCTruthECal",Form("DeltaCOGXvsCOGY_Bhabha") ,600, -300, 300 ,600, -300, 300);
 
+  fHS->BookHistoList("MCTruthECal",Form("DeltaCOGX_Babayaga"),600, -300, 300);
+  fHS->BookHistoList("MCTruthECal",Form("DeltaCOGY_Babayaga"), 600, -300, 300);
+  fHS->BookHisto2List("MCTruthECal",Form("DeltaCOGXvsCOGY_Babayaga") ,600, -300, 300 ,600, -300, 300);
+
 
   fHS->BookHisto2List("MCTruthECal","Chi2PositionvsEPcle_annihil",200,0, 400, 100, 0, 100);
   fHS->BookHisto2List("MCTruthECal","Chi2PositionvsEPcle_Bhabha",200,0, 400, 100, 0, 100);
+  fHS->BookHisto2List("MCTruthECal","Chi2PositionvsEPcle_Babayaga",200,0, 400, 100, 0, 100);
   fHS->BookHisto2List("MCTruthECal","Chi2PositionvsEPcle_eIoni",200,0, 400, 100, 0, 100);
   fHS->BookHisto2List("MCTruthECal","Chi2PositionvsEPcle_eBrem",200,0, 400, 100, 0, 100);
   fHS->BookHisto2List("MCTruthECal","Chi2PositionvsEPcle",200,0, 400, 100, 0, 100);
@@ -206,12 +215,12 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
       VtxVector.push_back(CluforiV);
       // VtxPcleCluCorr.push_back(CluEmpty);
 
-      Int_t CluPcleOut[2]={-1,-1}; //2 is the maximum number of plces out from a vertex, initialized to -1 so that when a pcle is associated with a cluster the value becomes 1
-      Int_t CluPcleOutFlag[2]={-1,-1}; //2 is the maximum number of plces out from a vertex, initialized to -1 so that when a pcle is associated with a cluster the value becomes 1
-      Int_t Extrapolation[2]={-1,-1};
-      Double_t EPcleOut[2]={-1,-1};
-      TVector3 cluPosOut[2];
-      Double_t ECluOut[2] ={-1,-1};
+      Int_t CluPcleOut[NPcles]={-1,-1, -1,-1, -1,-1, -1,-1, -1,-1}; //2 is the maximum number of plces out from a vertex, initialized to -1 so that when a pcle is associated with a cluster the value becomes 1
+      Int_t CluPcleOutFlag[NPcles]={-1,-1, -1,-1, -1,-1, -1,-1, -1,-1};  //2 is the maximum number of plces out from a vertex, initialized to -1 so that when a pcle is associated with a cluster the value becomes 1
+      Int_t Extrapolation[NPcles]={-1,-1, -1,-1, -1,-1, -1,-1, -1,-1}; 
+      Double_t EPcleOut[NPcles]={-1,-1, -1,-1, -1,-1, -1,-1, -1,-1}; 
+      TVector3 cluPosOut[NPcles];
+      Double_t ECluOut[NPcles] ={-1,-1, -1,-1, -1,-1, -1,-1, -1,-1}; 
       mcVtx = fEvent->MCTruthEvent->Vertex(iV);
       
       VtxPos = mcVtx->GetPosition();
@@ -223,9 +232,15 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
           fHS->FillHistoList("MCTruthECal","ProcessID",1.,1.);
           }else if(mcVtx->GetProcess()=="annihil"){
           fHS->FillHistoList("MCTruthECal","ProcessID",2.,1.);
+          }else if (mcVtx->GetProcess()=="Bhabha"){
+          fHS->FillHistoList("MCTruthECal","ProcessID",4.,1.);	
+          }else if (mcVtx->GetProcess()=="Babayaga"){
+          // std::cout<<mcVtx->GetNParticleOut()<<std::endl;
+          fHS->FillHistoList("MCTruthECal","ProcessID",5.,1.);
           }else{
-            fHS->FillHistoList("MCTruthECal","ProcessID",3.,1.);	
-          } 
+          fHS->FillHistoList("MCTruthECal","ProcessID",6.,1.);
+          }	
+
           
       //pcleOut, x e y all'ecal
       //loop on vtx pcle out
@@ -245,11 +260,12 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
        
           int icellX = VtxPosAtCalo.X()/cellSize+0.5 + ncells/2;
           int icellY = VtxPosAtCalo.Y()/cellSize+0.5 + ncells/2;
+          //
           
+          //if (mcVtx->GetProcess()=="Babayaga") std::cout<<"en prima cut"<<mcOPart->GetEnergy()<<std::endl;
           if(icellX>ncells || icellX<0) continue;
           if(icellY>ncells || icellY<0) continue;
-  
-
+          
           // Double_t PhiPcle0 = TMath::ATan2(VtxPosAtCalo.Y(),VtxPosAtCalo.X());
 
           //if(abs((abs(PhiPcle0)-TMath::Pi()/2))<TMath::Pi()/6) continue;
@@ -259,6 +275,7 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
           
 
           if(fCellMap[100*icellX+icellY]!=1) continue; //controlla mappa calorimetro
+          //if (mcVtx->GetProcess()=="Babayaga") std::cout<<"en DOPO cut"<<mcOPart->GetEnergy()<<std::endl;
 
           // if (VtxPosAtCalo.Perp() < fGeneralInfo->GetRadiusMin()) continue; // cluster should be within the radius range of the 2gamma cluster pair //for tag and probe comparison
           // if (VtxPosAtCalo.Perp() > fGeneralInfo->GetRadiusMax()) continue; // cluster should be within the radius range of the 2gamma cluster pair
@@ -296,6 +313,7 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
                   clu->GetPosition().X(),
                   clu->GetPosition().Y(),fGeneralInfo->GetCOG().Z()); 
               cluPosOut[h1] = cluPos;
+              
                   if((cluTime-VtxTime)>DTlow && (cluTime-VtxTime)<DTup){        
 
                     Double_t DeltaR = TMath::Sqrt(((VtxPosAtCalo.X()-cluPos.X())*(VtxPosAtCalo.X()-cluPos.X()))+((VtxPosAtCalo.Y()-cluPos.Y())*(VtxPosAtCalo.Y()-cluPos.Y())));
@@ -367,16 +385,16 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
                 fHS->FillHistoList("MCTruthECal",Form("EbeamE1E0Ass_%s",mcVtx->GetProcess().Data()),fGeneralInfo->GetBeamEnergy()-EPcleOut[0]-EPcleOut[1]);
                 //cog
 
-                TVector3 cog0= cluPosOut[0];
-                cog0*= EPcleOut[0];
-                TVector3 cog1 =cluPosOut[1];
-                cog1*= EPcleOut[1];
-                TVector3 cog = cog0+cog1;
-                cog*= 1/(EPcleOut[0]+EPcleOut[1]);
+                // TVector3 cog0= cluPosOut[0];
+                // cog0*= EPcleOut[0];
+                // TVector3 cog1 =cluPosOut[1];
+                // cog1*= EPcleOut[1];
+                // TVector3 cog = cog0+cog1;
+                // cog*= 1/(EPcleOut[0]+EPcleOut[1]);
 
-                fHS->FillHistoList("MCTruthECal",Form("DeltaCOGX_%s",mcVtx->GetProcess().Data()), cog.X()- fGeneralInfo->GetCOG().X(), 1.);
-                fHS->FillHistoList("MCTruthECal",Form("DeltaCOGY_%s",mcVtx->GetProcess().Data()),  cog.Y()- fGeneralInfo->GetCOG().Y(), 1.);
-                fHS->FillHisto2List("MCTruthECal",Form("DeltaCOGXvsCOGY_%s",mcVtx->GetProcess().Data()), cog.X()- fGeneralInfo->GetCOG().X(), cog.Y()- fGeneralInfo->GetCOG().Y(), 1.);
+                // fHS->FillHistoList("MCTruthECal",Form("DeltaCOGX_%s",mcVtx->GetProcess().Data()), cog.X()- fGeneralInfo->GetCOG().X(), 1.);
+                // fHS->FillHistoList("MCTruthECal",Form("DeltaCOGY_%s",mcVtx->GetProcess().Data()),  cog.Y()- fGeneralInfo->GetCOG().Y(), 1.);
+                // fHS->FillHisto2List("MCTruthECal",Form("DeltaCOGXvsCOGY_%s",mcVtx->GetProcess().Data()), cog.X()- fGeneralInfo->GetCOG().X(), cog.Y()- fGeneralInfo->GetCOG().Y(), 1.);
 
                 // if(fGeneralInfo->GetBeamEnergy()-EPcleOut[0]-EPcleOut[1]> 100){
                 //   std::cout<<"EPcleOut[0]: "<<EPcleOut[0]<<" EPcleOut[1]: "<<EPcleOut[1]<<" Process:"<<mcVtx->GetProcess().Data()<<" ECluOut[0]: "<<ECluOut[0]<<" ECluOut[1]: "<<ECluOut[1]<<std::endl;
@@ -385,7 +403,7 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
               }
           }
            //VtxPcleCluCorr.insert({iV, CluPcleOut});
-            VtxPcleCluCorr.insert({iV, make_pair(CluPcleOut[0], CluPcleOut[1])});
+          //  VtxPcleCluCorr.insert({iV, make_pair(CluPcleOut[0], CluPcleOut[1])});
       } //chiude Vtx
       
       // VtxCluCorr[iV]= VtxVector.at(iV);
@@ -437,26 +455,26 @@ Int_t MCTruthECal::GetVtxFromCluID(Int_t CluId){
   
 // }
 
-std::pair<Int_t,Int_t> MCTruthECal::GetCluPcleCorr(Int_t VtxId){
+// std::pair<Int_t,Int_t> MCTruthECal::GetCluPcleCorr(Int_t VtxId){
 
-    std::map<Int_t, std::pair<Int_t,Int_t>>::iterator it;
-    it = VtxPcleCluCorr.find(VtxId);
-    if(it!= VtxPcleCluCorr.end()){
-      return it->second;
-    }else{
-      return {-1,-1};
-    }
+//     std::map<Int_t, std::pair<Int_t,Int_t>>::iterator it;
+//     it = VtxPcleCluCorr.find(VtxId);
+//     if(it!= VtxPcleCluCorr.end()){
+//       return it->second;
+//     }else{
+//       return {-1,-1};
+//     }
 
     // return VtxPcleCluCorr[VtxId];
   
-}
+//}
 
 
-std::map<Int_t, std::pair<Int_t,Int_t>> MCTruthECal::GetCluPcleCorr_all(){
+// std::map<Int_t, std::pair<Int_t,Int_t>> MCTruthECal::GetCluPcleCorr_all(){
 
-    return VtxPcleCluCorr;
+//     return VtxPcleCluCorr;
   
-}
+// }
 
 // void MCTruthECal::GetCluPcleCorr(Int_t VtxId, Int_t &Val1, Int_t &Val2){
 //     std::cout<<VtxId<<std::endl;

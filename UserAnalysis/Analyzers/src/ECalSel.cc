@@ -222,12 +222,12 @@ Bool_t ECalSel::NSignalBhabha()
 void ECalSel::ProcessForCalib()
 {
   // fSafeEnergyFactor = 0.2; // Safety factor used for the energy min and max cuts
-  fSafeEnergyFactor = 0.01; // Safety factor used for the energy min and max cuts
+  fSafeEnergyFactor = 0.001; // Safety factor used for the energy min and max cuts
   // fSafeSpaceMargin = 42; // 2 cells in mm, safety margin used for the radius min and max cut
   fSafeSpaceMargin = 125; // 6 cells in mm, safety margin used for the radius min and max cut
   fFillLocalHistograms = false;
   fFillCalibHistograms = true;
-  fSigmaCut = 10.;
+  fSigmaCut = 100.;
   // fSigmaCut = 7.;
   fECalEvents.clear();
   TwoClusSel();  //removed for now
@@ -517,42 +517,42 @@ Int_t ECalSel::OneClusTagAndProbeSel()
     fhSvcVal->FillHisto2List("ECalSel", "ECal_TP_Tag_XYmap", icellXTag, icellYTag, 1.);
     fhSvcVal->FillHisto2List("ECalSel", "ECal_TP_Tag_XYmap_Ew", icellXTag, icellYTag, cluEnergy[0]);
 
-    if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED))
-    {
-      if (fMCTruthECal->GetVtxFromCluID(h1) < 0)
-      {
-        std::cout << "**Tag clu " << h1 << "has no vertex associated**, EvID: " << fRecoEvent->GetEventNumber() << " DE: " << cluEnergy[0] - pg << std::endl;
-      }
-      else
-      {
-        TMCVertex *mcVtx = fEvent->MCTruthEvent->Vertex(fMCTruthECal->GetVtxFromCluID(h1));
+    // if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED))
+    // {
+    //   if (fMCTruthECal->GetVtxFromCluID(h1) < 0)
+    //   {
+    //     std::cout << "**Tag clu " << h1 << "has no vertex associated**, EvID: " << fRecoEvent->GetEventNumber() << " DE: " << cluEnergy[0] - pg << std::endl;
+    //   }
+    //   else
+    //   {
+    //     TMCVertex *mcVtx = fEvent->MCTruthEvent->Vertex(fMCTruthECal->GetVtxFromCluID(h1));
 
-        std::pair<Int_t, Int_t> mcOPartcles;
+    //     std::pair<Int_t, Int_t> mcOPartcles;
 
-        mcOPartcles = fMCTruthECal->GetCluPcleCorr(fMCTruthECal->GetVtxFromCluID(h1));
-        TMCParticle *PcleOut;
+    //     mcOPartcles = fMCTruthECal->GetCluPcleCorr(fMCTruthECal->GetVtxFromCluID(h1));
+    //     TMCParticle *PcleOut;
 
-        if (mcOPartcles.first == h1)
-          PcleOut = mcVtx->ParticleOut(0);
-        else if (mcOPartcles.second == h1)
-          PcleOut = mcVtx->ParticleOut(1);
-        else
-          continue;
-        TVector3 pcleMom = PcleOut->GetMomentum();
+    //     if (mcOPartcles.first == h1)
+    //       PcleOut = mcVtx->ParticleOut(0);
+    //     else if (mcOPartcles.second == h1)
+    //       PcleOut = mcVtx->ParticleOut(1);
+    //     else
+    //       continue;
+    //     TVector3 pcleMom = PcleOut->GetMomentum();
 
-        fhSvcVal->FillHistoList("ECalSel", "ECal_TP_DeltaPwithPcle", pcleMom.Mag() - cluMom.Mag(), 1.);
-        TVector3 VtxPos = mcVtx->GetPosition();
-        TVector3 pclePos = VtxPos;
+    //     fhSvcVal->FillHistoList("ECalSel", "ECal_TP_DeltaPwithPcle", pcleMom.Mag() - cluMom.Mag(), 1.);
+    //     TVector3 VtxPos = mcVtx->GetPosition();
+    //     TVector3 pclePos = VtxPos;
 
-        TVector3 VtxPosAtCalo;
-        VtxPosAtCalo.SetZ(fGeneralInfo->GetCOG().Z() - 72.8); // removed 6.5X0 faccia calorimetro
-        VtxPosAtCalo.SetX(pclePos.X() + ((pcleMom.X() / pcleMom.Z()) * (VtxPosAtCalo.Z() - pclePos.Z())));
-        VtxPosAtCalo.SetY(pclePos.Y() + ((pcleMom.Y() / pcleMom.Z()) * (VtxPosAtCalo.Z() - pclePos.Z())));
-        fhSvcVal->FillHistoList("ECalSel", "ECal_TP_DeltaThetawithPcle", VtxPosAtCalo.Theta() - cluPos->Theta(), 1.);
+    //     TVector3 VtxPosAtCalo;
+    //     VtxPosAtCalo.SetZ(fGeneralInfo->GetCOG().Z() - 72.8); // removed 6.5X0 faccia calorimetro
+    //     VtxPosAtCalo.SetX(pclePos.X() + ((pcleMom.X() / pcleMom.Z()) * (VtxPosAtCalo.Z() - pclePos.Z())));
+    //     VtxPosAtCalo.SetY(pclePos.Y() + ((pcleMom.Y() / pcleMom.Z()) * (VtxPosAtCalo.Z() - pclePos.Z())));
+    //     fhSvcVal->FillHistoList("ECalSel", "ECal_TP_DeltaThetawithPcle", VtxPosAtCalo.Theta() - cluPos->Theta(), 1.);
 
-        fhSvcVal->FillHisto2List("ECalSel", "ECal_TP_DThetavsDPwithPcle", VtxPosAtCalo.Theta() - cluPos->Theta(), pcleMom.Mag() - cluMom.Mag(), 1.);
-      }
-    }
+    //     fhSvcVal->FillHisto2List("ECalSel", "ECal_TP_DThetavsDPwithPcle", VtxPosAtCalo.Theta() - cluPos->Theta(), pcleMom.Mag() - cluMom.Mag(), 1.);
+    //   }
+    // }
 
     fhSvcVal->FillHisto2List("ECalSel", "ECal_TP_DE_Tag", fGeneralInfo->GetBeamEnergy() - pg, cluEnergy[0] - pg, 1.);
     fhSvcVal->FillHisto2List("ECalSel", "ECal_TP_DEVsE_cut_tag", pg, fGeneralInfo->GetBeamEnergy() - pg, 1.);
@@ -1820,8 +1820,8 @@ Int_t ECalSel::TwoClusters_couples(){
 
 Bool_t ECalSel::InitHistos()
 {
-  static int NprocessAvailable = 5;
-  TString processIDs[NprocessAvailable] = {"eIoni", "eBrem", "annihil", "Bhabha", "NoVtx"};
+  static int NprocessAvailable = 6;
+  TString processIDs[NprocessAvailable] = {"eIoni", "eBrem", "annihil", "Bhabha","Babayaga","NoVtx"};
 
   fhSvcVal->CreateList("ECalSel");
   fhSvcVal->CreateList("ECalSelMCTruth");
@@ -2004,12 +2004,11 @@ Bool_t ECalSel::InitHistos()
 
 
   
-  static int NprocessAvailableTwoClu = 6;
-  TString processIDsTwoClu[NprocessAvailableTwoClu] = {"eIoni", "eBrem", "annihil", "Bhabha", "NoVtx", "Mixed"};
+  static int NprocessAvailableTwoClu = 7;
+  TString processIDsTwoClu[NprocessAvailableTwoClu] = {"eIoni", "eBrem", "annihil", "Bhabha","Babayaga", "NoVtx", "Mixed"};
 
  for (int pid = 0; pid < NprocessAvailableTwoClu; pid++)
   {
-
     fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
     fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_R1VsR2_%s", processIDsTwoClu[pid].Data()), 500, 0., 500, 500, 0., 500);
     fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_Phi1VsPhi2_%s", processIDsTwoClu[pid].Data()),800, -TMath::Pi(), TMath::Pi(), 800, -TMath::Pi(), TMath::Pi());
