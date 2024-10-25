@@ -1,6 +1,7 @@
 // Written by M. Raggi   28/03/2022 
 // Added GetInstance by M. Raggi 2/06/2022
 #include "MCTruthECal.hh"
+#include "TLorentzVector.h"
 #include <iostream>
 #include <stdlib.h>
 #include <stdio.h>
@@ -98,6 +99,7 @@ Bool_t MCTruthECal::InitHistos(){
   fHS->BookHistoList("MCTruthECal","EPcleAss",100,0,400);
   fHS->BookHisto2List("MCTruthECal",Form("DEvsEtrue"),100, 0,300, 100, -100,100 );
 
+  fHS->BookHistoList("MCTruthECal", "NPcles", 10, -0.5, 10.5);
 
   fHS->BookHistoList("MCTruthECal","EPcleTag",200,0,400);
   fHS->BookHistoList("MCTruthECal","EPcleTagandProbe",200,0,400);
@@ -120,7 +122,14 @@ Bool_t MCTruthECal::InitHistos(){
   fHS->BookHistoList("MCTruthECal","EPcle_Babayaga",100,0,400);
   fHS->BookHistoList("MCTruthECal","EPcleAss_Bhabha",100,0,400);
   fHS->BookHistoList("MCTruthECal","EPcleAss_Babayaga",100,0,400);
-  
+  fHS->BookHistoList("MCTruthECal","ETrue_Babayaga",400,100,300);
+  fHS->BookHistoList("MCTruthECal","EReco_Babayaga",400,100,300);
+  fHS->BookHistoList("MCTruthECal","ETrue_Babayaga_atcalo",400,100,300);
+  fHS->BookHistoList("MCTruthECal","EReco_Babayaga_atcalo",400,100,300);
+  fHS->BookHisto2List("MCTruthECal","ETruevsNPcle_atcalo_Babayaga",10,0,10, 400,100,300);
+  fHS->BookHisto2List("MCTruthECal","ERecovsNPcle_Babayaga",10,0,10, 400,100,300);
+
+
   fHS->BookHisto2List("MCTruthECal","XYmap",30,0,30,30,0,30);
   fHS->BookHisto2List("MCTruthECal","XYmapEw",30,0,30,30,0,30);
   fHS->BookHisto2List("MCTruthECal","XYmapAss",30,0,30,30,0,30);
@@ -241,18 +250,30 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
           fHS->FillHistoList("MCTruthECal","ProcessID",6.,1.);
           }	
 
-          
+      
       //pcleOut, x e y all'ecal
       //loop on vtx pcle out
+      //if(mcVtx->GetProcess().CompareTo("Babayaga")!=0) continue;
+      TLorentzVector sumBabayaga;
+      sumBabayaga.SetXYZT(0.,0.,0.,0.);
+      Double_t enSum =0;
+      Double_t enSum_atcalo =0;
+      Double_t enTrue =0;
+      Double_t enTrue_atcalo =0;
+      int npclesass=0;
+      fHS->FillHistoList("MCTruthECal", "NPcles", mcVtx->GetNParticleOut()-2);
+
       for(Int_t iO = 0; iO<mcVtx->GetNParticleOut(); iO++) {
 
           TMCParticle* mcOPart = mcVtx->ParticleOut(iO);
         
           Double_t pcleE=mcOPart->GetEnergy();
           TVector3 pclePos = VtxPos;
-
+          enTrue+=pcleE;
           TVector3 pcleMom =mcOPart->GetMomentum();
-          
+          TLorentzVector pcle;
+          pcle.SetXYZT(pcleMom.X(), pcleMom.Y(), pcleMom.Z(), pcleE);
+          sumBabayaga+=pcle;
           TVector3 VtxPosAtCalo;
           VtxPosAtCalo.SetZ(fGeneralInfo->GetCOG().Z()-72.8); //removed 6.5X0 faccia calorimetro
           VtxPosAtCalo.SetX(pclePos.X()+((pcleMom.X()/pcleMom.Z())*(VtxPosAtCalo.Z()-pclePos.Z())));
@@ -312,8 +333,8 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
               cluPos.SetXYZ(
                   clu->GetPosition().X(),
                   clu->GetPosition().Y(),fGeneralInfo->GetCOG().Z()); 
-              cluPosOut[h1] = cluPos;
-              
+              cluPosOut[iO] = cluPos;
+              // std::cout<<"muoio nel loop cluster"<<std::endl;
                   if((cluTime-VtxTime)>DTlow && (cluTime-VtxTime)<DTup){        
 
                     Double_t DeltaR = TMath::Sqrt(((VtxPosAtCalo.X()-cluPos.X())*(VtxPosAtCalo.X()-cluPos.X()))+((VtxPosAtCalo.Y()-cluPos.Y())*(VtxPosAtCalo.Y()-cluPos.Y())));
@@ -361,7 +382,9 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
               VtxVector.at(iV).push_back(cluIdx);
               //flagga il cluster associato
               CluPcleOut[iO]= cluIdx; //salva indice cluster degli associati
-          
+              enSum+= cluEnergy;
+              npclesass++;
+              enTrue_atcalo+=pcleE;
               fHS->FillHistoList("MCTruthECal","EPcleAss",pcleE);
               fHS->FillHisto2List("MCTruthECal","XYmapAss",icellX,icellY, 1.);
               fHS->FillHisto2List("MCTruthECal","XYmapEwAss",icellX,icellY, pcleE);
@@ -375,6 +398,14 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
             fHS->FillHistoList("MCTruthECal","NCluVtx",NCluVtx);
 
           } //chiude Pcle
+
+          //std::cout<<"s = "<<sumBabayaga.M()<<" en sum = "<<enSum<<" expected npcle out: "<<mcVtx->GetNParticleOut()<<" pcle at calo = "<<npclesass<<std::endl;
+          fHS->FillHistoList("MCTruthECal","ETrue_Babayaga",enTrue);
+          fHS->FillHisto2List("MCTruthECal","ETruevsNPcle_atcalo_Babayaga",npclesass, enTrue_atcalo);
+          fHS->FillHistoList("MCTruthECal","ETrue_Babayaga_atcalo",enTrue_atcalo);
+          fHS->FillHistoList("MCTruthECal","EReco_Babayaga",enSum);
+          fHS->FillHisto2List("MCTruthECal","ERecovsNPcle_Babayaga",npclesass, enSum);
+          // fHS->FillHistoList("MCTruthECal","EReco_Babayaga_atcalo",enSum);
           if((Extrapolation[0]==1 && Extrapolation[1]==1) && CluPcleOutFlag[0]==1) {
             fHS->FillHistoList("MCTruthECal","EPcleTag",fGeneralInfo->GetBeamEnergy()-EPcleOut[0]);
             fHS->FillHistoList("MCTruthECal","EbeamE1E0",fGeneralInfo->GetBeamEnergy()-EPcleOut[0]-EPcleOut[1]);

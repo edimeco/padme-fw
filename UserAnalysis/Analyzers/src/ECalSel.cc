@@ -685,44 +685,44 @@ Int_t ECalSel::OneClusTagAndProbeSel()
                 fhSvcVal->FillHisto2List("ECalSelMCTruth", Form("ECal_TP_Theta1vsTheta2_probe_%s", processTag.Data()), pcleOutProbe[0]->GetMomentum().Theta(), pcleOutProbe[1]->GetMomentum().Theta(), 1.);
                 fhSvcVal->FillHistoList("ECalSelMCTruth", Form("ECal_TP_SqrtS_probe_%s", processTag.Data()), (pcle0probe + pcle1probe).M(), 1.);
               }
-              if (processTag.CompareTo("NoVtx") == 0)
-              {
-                std::cout << " TAGCLU: " << h1 << " PROBECLU: " << h2 << std::endl;
-                // fhSvcVal->FillHistoList("ECalSelMCTruth",Form("ECal_TP_E1plusE2_tagandprobe_%s",processTag.Data()), cluEnergy[0], cluEnergy[1]);
-                for (int hcheck = 0; hcheck < fECal_clEvent->GetNElements(); ++hcheck)
-                {
-                  TRecoVCluster *clucheck = fECal_clEvent->Element((int)hcheck);
-                  std::cout << "" << hcheck << " x,y,z : { " << clucheck->GetPosition().X() << " , " << clucheck->GetPosition().Y() << " , " << clucheck->GetPosition().Z() << " }, Energy: " << clucheck->GetEnergy() << " , Time: " << clucheck->GetTime() << std::endl;
-                  if (hcheck == h1 || hcheck == h2)
-                  {
-                    std::cout << "TAGORPROBE " << hcheck << " x,y,z : { " << clucheck->GetPosition().X() << " , " << clucheck->GetPosition().Y() << " , " << clucheck->GetPosition().Z() << " } COG x,y,z : { " << cog.X() << " , " << cog.Y() << " , " << cog.Z() << " }, Energy: " << clucheck->GetEnergy() << " , Time: " << clucheck->GetTime() << std::endl;
-                    //   for(Int_t iV = 0; iV < fEvent->MCTruthEvent->GetNVertices(); iV++) {
-                    //    TMCVertex* mcVtx = fEvent->MCTruthEvent->Vertex(iV);
-                    //     for(Int_t iO = 0; iO<mcVtx->GetNParticleOut(); iO++) {
-                    //       TMCParticle* mcOPart = mcVtx->ParticleOut(iO);
-                    //       TVector3 VtxPos= mcVtx->GetPosition();
-                    //       TVector3 pclePos = VtxPos;
+              // if (processTag.CompareTo("NoVtx") == 0)
+              // {
+              //   //std::cout << " TAGCLU: " << h1 << " PROBECLU: " << h2 << std::endl;
+              //   // fhSvcVal->FillHistoList("ECalSelMCTruth",Form("ECal_TP_E1plusE2_tagandprobe_%s",processTag.Data()), cluEnergy[0], cluEnergy[1]);
+              //   for (int hcheck = 0; hcheck < fECal_clEvent->GetNElements(); ++hcheck)
+              //   {
+              //     TRecoVCluster *clucheck = fECal_clEvent->Element((int)hcheck);
+              //     //std::cout << "" << hcheck << " x,y,z : { " << clucheck->GetPosition().X() << " , " << clucheck->GetPosition().Y() << " , " << clucheck->GetPosition().Z() << " }, Energy: " << clucheck->GetEnergy() << " , Time: " << clucheck->GetTime() << std::endl;
+              //     if (hcheck == h1 || hcheck == h2)
+              //     {
+              //       //std::cout << "TAGORPROBE " << hcheck << " x,y,z : { " << clucheck->GetPosition().X() << " , " << clucheck->GetPosition().Y() << " , " << clucheck->GetPosition().Z() << " } COG x,y,z : { " << cog.X() << " , " << cog.Y() << " , " << cog.Z() << " }, Energy: " << clucheck->GetEnergy() << " , Time: " << clucheck->GetTime() << std::endl;
+              //       //   for(Int_t iV = 0; iV < fEvent->MCTruthEvent->GetNVertices(); iV++) {
+              //       //    TMCVertex* mcVtx = fEvent->MCTruthEvent->Vertex(iV);
+              //       //     for(Int_t iO = 0; iO<mcVtx->GetNParticleOut(); iO++) {
+              //       //       TMCParticle* mcOPart = mcVtx->ParticleOut(iO);
+              //       //       TVector3 VtxPos= mcVtx->GetPosition();
+              //       //       TVector3 pclePos = VtxPos;
 
-                    //       TVector3 pcleMom =mcOPart->GetMomentum();
+              //       //       TVector3 pcleMom =mcOPart->GetMomentum();
 
-                    //       TVector3 VtxPosAtCalo;
-                    //       VtxPosAtCalo.SetZ(fGeneralInfo->GetCOG().Z()-72.8); //removed 6.5X0 faccia calorimetro
-                    //       VtxPosAtCalo.SetX(pclePos.X()+((pcleMom.X()/pcleMom.Z())*(VtxPosAtCalo.Z()-pclePos.Z())));
-                    //       VtxPosAtCalo.SetY(pclePos.Y()+((pcleMom.Y()/pcleMom.Z())*(VtxPosAtCalo.Z()-pclePos.Z())));
+              //       //       TVector3 VtxPosAtCalo;
+              //       //       VtxPosAtCalo.SetZ(fGeneralInfo->GetCOG().Z()-72.8); //removed 6.5X0 faccia calorimetro
+              //       //       VtxPosAtCalo.SetX(pclePos.X()+((pcleMom.X()/pcleMom.Z())*(VtxPosAtCalo.Z()-pclePos.Z())));
+              //       //       VtxPosAtCalo.SetY(pclePos.Y()+((pcleMom.Y()/pcleMom.Z())*(VtxPosAtCalo.Z()-pclePos.Z())));
 
-                    //       int icellX = VtxPosAtCalo.X()/cellSize+0.5 + ncells/2;
-                    //       int icellY = VtxPosAtCalo.Y()/cellSize+0.5 + ncells/2;
+              //       //       int icellX = VtxPosAtCalo.X()/cellSize+0.5 + ncells/2;
+              //       //       int icellY = VtxPosAtCalo.Y()/cellSize+0.5 + ncells/2;
 
-                    //       if(icellX>ncells || icellX<0) continue;
-                    //       if(icellY>ncells || icellY<0) continue;
-                    //       Double_t VtxTime =  mcVtx->GetTime()+TOFoffset;
-                    //       std::cout<<"Vtx: "<<iV<<" PcleOut: "<<iO<<" Pcle code: "<<mcOPart->GetPDGCode()<<" x,y,z : { "<<VtxPosAtCalo.X()<<" , "<<VtxPosAtCalo.Y()<<" , "<<VtxPosAtCalo.Z()<<" }, Energy: "<<mcOPart->GetEnergy()<<" , Time: "<< VtxTime<<std::endl;
+              //       //       if(icellX>ncells || icellX<0) continue;
+              //       //       if(icellY>ncells || icellY<0) continue;
+              //       //       Double_t VtxTime =  mcVtx->GetTime()+TOFoffset;
+              //       //       std::cout<<"Vtx: "<<iV<<" PcleOut: "<<iO<<" Pcle code: "<<mcOPart->GetPDGCode()<<" x,y,z : { "<<VtxPosAtCalo.X()<<" , "<<VtxPosAtCalo.Y()<<" , "<<VtxPosAtCalo.Z()<<" }, Energy: "<<mcOPart->GetEnergy()<<" , Time: "<< VtxTime<<std::endl;
 
-                    // }
-                    // }
-                  }
-                }
-              }
+              //       // }
+              //       // }
+              //     }
+              //   }
+              // }
               
             }
 
