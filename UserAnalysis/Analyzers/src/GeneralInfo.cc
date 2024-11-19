@@ -41,7 +41,8 @@ Bool_t GeneralInfo::Init(PadmeAnalysisEvent* event, Int_t DBRunNumber){
   else {
     fPeriodStartTime = 1664807042;    // sec, first good run of 2022 run, 50151 
     fBeamMomentum = 268.94;       // MeV, DHSTB01 energy for 50381
-    fZECal = 2508.31 + 175.650; // mm, relative offset from 2022 survey: average of 176.9 and 174.4
+    //fZECal = 2508.31 + 175.650 ; // mm, relative offset from 2022 survey: average of 176.9 and 174.4
+    fZECal = 2612.4 ; // from MC Detector setup 40, no shower max, ok for positrons
   }
 
   // default start and stop time of runs
@@ -209,14 +210,14 @@ void GeneralInfo::RetrieveDBInfo(int runID){
     fIsBunchLengthAvailable = fOfflineServerDB->isBunchLengthAvailable(runID);
     // might interpolate if info not available
     
-    if (runID < 50151) {
-      fPeriodStartTime = 1600256773;// sec, first good run of 2020 run, 30339
-      fZECal = 2508.31; // mm,  = 2550.51 - 230./2. + 6.5*X0, X0=11.2 mm: should override reco
-    }
-    else {
-      fPeriodStartTime = 1664807042;    // sec, first good run of 2022 run, 50151 
-      fZECal = 2508.31 + 175.650; // mm, from 2022 survey: average of 176.9 and 174.4
-    }
+    // if (runID < 50151) {
+    //   fPeriodStartTime = 1600256773;// sec, first good run of 2020 run, 30339
+    //   fZECal = 2508.31; // mm,  = 2550.51 - 230./2. + 6.5*X0, X0=11.2 mm: should override reco
+    // }
+    // else {
+    //   fPeriodStartTime = 1664807042;    // sec, first good run of 2022 run, 50151 
+    //   fZECal = 2508.31 + 175.650; // mm, from 2022 survey: average of 176.9 and 174.4
+    // }
 
     fXTarg = fOfflineServerDB->getTargetXAvg(runID);
     fYTarg = fOfflineServerDB->getTargetYAvg(runID);

@@ -196,7 +196,7 @@ Double_t ECalSel::NPoTLGCorr()
   Double_t NPotNoCorr = fNPoTAnalysis->GetNPoTLG();
   if (fFillLocalHistograms)
   {
-    fhSvcVal->FillHistoList("ECalSel", "NPoTLGCorr", NPotCorr, 1.);
+    fhSvcVal->FillHistoList("ECalSelTwoClu", "NPoTLGCorr", NPotCorr, 1.);
     fhSvcVal->FillHistoList("ECalSel", "NPoTLG_NO_Corr", NPotNoCorr, 1.);
   }
   return NPotCorr;
@@ -213,7 +213,7 @@ Bool_t ECalSel::NSignalBhabha()
       TMCParticle *mcOPart = mcVtx->ParticleOut(0);
       Double_t pcleE = mcOPart->GetEnergy();
       if (fFillLocalHistograms)
-        fhSvcVal->FillHistoList("ECalSel", "EnSignalBhabha", pcleE, 1.);
+        fhSvcVal->FillHistoList("ECalSelTwoClu", "EnSignalBhabha", pcleE, 1.);
     }
   }
   return true;
@@ -241,7 +241,7 @@ Bool_t ECalSel::Process()
 
   // if(NEvent%10000==0) cout<<"ECalSel NEvent "<<NEvent<<endl;// -->si resetta ogni circa 500 evt per il MC
 
-  fSafeEnergyFactor = 0.7; // 0.7; // Safety factor used for the energy min and max cuts
+  fSafeEnergyFactor = 0.6; // 0.7; // Safety factor used for the energy min and max cuts
   fSafeSpaceMargin = 31.5;
   //fSafeSpaceMargin = 31.5 original value// 1.5 cells in mm, safety margin used for the radius min and max cut
   fFillLocalHistograms = true;
@@ -260,12 +260,10 @@ Bool_t ECalSel::Process()
     // DataQuality();
     NPoTLGCorr();
     TwoClusSel();
-    fSigmaCut = 4.;
     TwoClusters_couples();
     OneClusSel();
     OneClusTagAndProbeSel();
   }
-
   return true;
 }
 
@@ -322,13 +320,12 @@ Int_t ECalSel::OneClusSel()
       double dr = (cluPos[0] - cluPos[1]).Mag();
       TVector3 cog = (cluEnergy[0] / (cluEnergy[0] + cluEnergy[1])) * cluPos[0] + (cluEnergy[1] / (cluEnergy[0] + cluEnergy[1])) * cluPos[1]; // cog of the two clusters
 
-      
       if (fabs(dt) < fMaxTimeDistance && dr > minDistance && dr < maxDistance)
       {
 
         isPaired = h2;
         
-        npaired++;
+            npaired++;
       }
     } // inner cluster loop
 
@@ -428,10 +425,13 @@ Int_t ECalSel::OneClusTagAndProbeSel()
 
     Double_t PhiClu0 = TMath::ATan2(cluPos[0].Y(), cluPos[0].X());
 
-    if (abs((abs(PhiClu0) - TMath::Pi() / 2)) < TMath::Pi() / 6)
-      continue;
-    if (abs((abs(PhiExpProbe) - TMath::Pi() / 2)) < TMath::Pi() / 6)
-      continue;
+    // if (abs((abs(PhiClu0) - TMath::Pi() / 2)) < TMath::Pi() / 6)
+    //   continue;
+    // if (abs((abs(PhiExpProbe) - TMath::Pi() / 2)) < TMath::Pi() / 6)
+    //   continue;
+
+    if ((TMath::Abs(TMath::Cos(PhiClu0)) < 0.7648) || (TMath::Abs(TMath::Cos(PhiExpProbe)) < 0.7648) ) continue;
+
 
     // if (icellYh1 > 26) continue; //magnet shadow for the 1st clu
     // if (icellYh1 < 3) continue; //magnet shadow for the 1st clu
@@ -598,6 +598,7 @@ Int_t ECalSel::OneClusTagAndProbeSel()
       if (fFillLocalHistograms)
       {
         fhSvcVal->FillHisto2List("ECalSel", Form("ECal_TP_DrVsDtAll"), dt, dr, 1.);
+      
       }
 
       double DeltaPhiAbs = fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi());
@@ -829,6 +830,7 @@ Int_t ECalSel::TwoClusSel()
   double cluTime[2];
   double cluEnergy[2];
   double Etotclu = 0;
+  double EtotcluR = 0;
   // std::vector<Point> polygon = {
   //     {288.094, 12.8463},
   //     {243.229, 10.4917},
@@ -872,10 +874,14 @@ Int_t ECalSel::TwoClusSel()
       fhSvcVal->FillHisto2List("ECalSel", Form("ECal_SC_yvsx_Eweight"), tempClu[0]->GetPosition().X(), tempClu[0]->GetPosition().Y(), tempClu[0]->GetEnergy());
       fhSvcVal->FillHisto2List("ECalSel", Form("ECal_SC_yvsx"), tempClu[0]->GetPosition().X(), tempClu[0]->GetPosition().Y(), 1.);
     }
+    if(cluPosRel[0].Perp() > fGeneralInfo->GetRadiusMin()- fSafeSpaceMargin && cluPosRel[0].Perp() < fGeneralInfo->GetRadiusMax()){
+      EtotcluR+=tempClu[0]->GetEnergy();
+    }
   }
 
   if (fFillLocalHistograms)
     fhSvcVal->FillHistoList("ECalSel", "ECal_SC_EClusters_nocut", Etotclu, 1.);
+    fhSvcVal->FillHistoList("ECalSel", "ECal_SC_EClusters_Rcut", EtotcluR, 1.);
   // aggiungere NCell x clu vs E
   //  loop on cluster pairs
 
@@ -1446,6 +1452,7 @@ Int_t ECalSel::TwoClusSel()
   return fECalEvents.size() - nOld;
 }
 
+
 std::vector<std::pair<Int_t, Int_t>> ECalSel::GetCluCouples(){
   int NClu = fECal_clEvent->GetNElements(), r = 2;
 
@@ -1506,7 +1513,7 @@ Int_t ECalSel::TwoClusters_couples(){
         tempClu[1]->GetPosition().Y(), fGeneralInfo->GetCOG().Z());
 
     cluPosRel[0] = cluPos[0]-fGeneralInfo->GetCOG();
-    cluPosRel[1] = cluPos[0]-fGeneralInfo->GetCOG();
+    cluPosRel[1] = cluPos[1]-fGeneralInfo->GetCOG();
     
     double dr = (cluPos[0] - cluPos[1]).Mag();
     fhSvcVal->FillHisto2List("ECalSelTwoClu", "ECal_TC_DrVsDt", dt, dr, 1.);
@@ -1525,17 +1532,21 @@ Int_t ECalSel::TwoClusters_couples(){
         TVector3 cluMom = cluPos[i] - fGeneralInfo->GetTargetPos();
         cluMom *= (cluEnergy[i] / cluMom.Mag());
         // laboratory and cm momenta
-         labMomenta[i].SetVectM(cluMom, 0.); // define a photon-like tlorentzVector --> siamo sicuri a 17 MeV??
+        Double_t Estar = fGeneralInfo->GetSqrts()/2;
+        labMomenta[i].SetVectM(cluMom, 0.); // define a photon-like tlorentzVector --> siamo sicuri a 17 MeV??
         labMomentaCM[i].SetVectM(labMomenta[i].Vect(), 0);
         labMomentaCM[i].Boost(-fGeneralInfo->GetBoost());
         // cosine and sine with respect to the boost
         cosq[i] = cluMom.Dot(fGeneralInfo->GetBoost()) / (cluMom.Mag() * fGeneralInfo->GetBoost().Mag());
         cluMomCrossBoost[i] = cluMom.Cross(fGeneralInfo->GetBoost());
         cluMomCrossBoost[i] *= 1. / (cluMom.Mag() * fGeneralInfo->GetBoost().Mag());
-
+        Double_t A = (fGeneralInfo->GetGam()*fGeneralInfo->GetGam()) - ((fGeneralInfo->GetBG()*cosq[i])*(fGeneralInfo->GetBG()*cosq[i]));
+        Double_t B = - 2*fGeneralInfo->GetBG()*Estar*cosq[i];
+        Double_t C = (fGeneralInfo->GetGam()*fGeneralInfo->GetGam()*0.511*0.511) - (Estar*Estar);
         //energy expected in the lab
-        pg[i] = 0.5 * fGeneralInfo->GetSqrts() / sqrt(1. - cosq[i] * cosq[i] + pow(fGeneralInfo->GetGam() * cosq[i], 2) - 2. * fGeneralInfo->GetBG() * fGeneralInfo->GetGam() * cosq[i] + pow(fGeneralInfo->GetBG(), 2));
-
+        //pg[i] = 0.5 * fGeneralInfo->GetSqrts() / sqrt(1. - cosq[i] * cosq[i] + pow(fGeneralInfo->GetGam() * cosq[i], 2) - 2. * fGeneralInfo->GetBG() * fGeneralInfo->GetGam() * cosq[i] + pow(fGeneralInfo->GetBG(), 2));
+        pg[i]= (-B/2 + TMath::Sqrt( B*B/4 - A*C) ) / A;
+        //std::cout<<"E*: "<<Estar<<" cosq[i]: "<<cosq[i]<<" A: "<<A<<" B: "<<B<<" C: "<<C<<" P: "<<pg[i]<<std::endl;
         // TVector3 cluMomTrue = cluPos[i] - fGeneralInfo->GetTargetPos();
         // cluMom *= (pg[i]/ cluMomTrue.Mag());
 
@@ -1571,7 +1582,6 @@ Int_t ECalSel::TwoClusters_couples(){
           }
           fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_DTHEVsDPHIAbs_%s", processSelected.Data()), fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                  labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-        
         if((labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta())<2 && (fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()))<2){
           fhSvcVal->FillHisto2List("ECalSelTwoCluMC",Form("ECal_TC_Phi1VsPhi2_%s", processSelected.Data()), TMath::ATan2(cluPos[0].Y(),cluPos[0].X()), TMath::ATan2(cluPos[1].Y(),cluPos[1].X()));
           TVector2 xyclu[2];
@@ -1588,10 +1598,10 @@ Int_t ECalSel::TwoClusters_couples(){
                                  fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                  labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
 
-    if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED))
+    if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED)){
     fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_DTHEVsDPHIAbs_dt_%s", processSelected.Data()), fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                  labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-      
+    } 
     if(dr < fMinGGDistance) continue;
     CutFlow |=  (1<<2);
     fhSvcVal->FillHisto2List("ECalSelTwoClu", "ECal_TC_DrVsDt_cut", dt, dr, 1.);
@@ -1606,7 +1616,6 @@ Int_t ECalSel::TwoClusters_couples(){
     if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED)){
     fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_DTHEVsDPHIAbs_dr_%s", processSelected.Data()), fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                  labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-    
     fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_E1VsE2_dr_%s", processSelected.Data()), cluEnergy[0],
                                  cluEnergy[1], 1.);
     
@@ -1645,102 +1654,95 @@ Int_t ECalSel::TwoClusters_couples(){
       fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_DTHEVsDPHIAbs_dtheta"),
                                  fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                  labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-
-      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED))
+      
+      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED)){
       fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_DTHEVsDPHIAbs_dtheta_%s", processSelected.Data()), fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                  labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-  
-
+      }
+      
+    //add histo
+    
+      fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_EMeasvsEExp_dthedphi"), cluEnergy[0], pg[0], 1.);
+      fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_EMeasvsEExp_dthedphi"), cluEnergy[1], pg[1], 1.);
+      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED) && processSelected.CompareTo("Babayaga")==0 ){
+         fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EMeasvsEExp_dthedphi_Babayaga"), cluEnergy[0], pg[0], 1.);
+         fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EMeasvsEExp_dthedphi_Babayaga"), cluEnergy[1], pg[1], 1.);
+         }
+      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED) && processSelected.CompareTo("BabayagaGG")==0 ) {
+        fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EMeasvsEExp_dthedphi_BabayagaGG"), cluEnergy[1], pg[1], 1.);
+        fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EMeasvsEExp_dthedphi_BabayagaGG"), cluEnergy[1], pg[1], 1.);
+      }
       //Phi cut
       Double_t PhiClu0 = TMath::ATan2(cluPos[0].Y(), cluPos[0].X());
       Double_t PhiClu1 = TMath::ATan2(cluPos[1].Y(), cluPos[1].X());
+          
+       //phi in (-0.7,0.7) || (TMath::Pi()-0.7, TMath::Pi()) || (-TMath::Pi(), -TMath::Pi()+0.7)
 
-      if (abs((abs(PhiClu1) - TMath::Pi() / 2)) > TMath::Pi() / 6 || abs((abs(PhiClu0) - TMath::Pi() / 2)) > TMath::Pi() / 6)
-        fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_DTHEVsDPHIAbs_PhiOR"),
-                                 fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
-                                 labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-
-      if (abs((abs(PhiClu1) - TMath::Pi() / 2)) < TMath::Pi() / 6 || abs((abs(PhiClu0) - TMath::Pi() / 2)) < TMath::Pi() / 6){
-        continue;
-      }
+      if ((TMath::Abs(TMath::Cos(PhiClu0)) < 0.7648) || (TMath::Abs(TMath::Cos(PhiClu1)) < 0.7648) ) continue;
+      
       fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_DTHEVsDPHIAbs_PhiAND"),
                                  fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                  labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
 
 
-      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED))
+      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED)){
         fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_DTHEVsDPHIAbs_PhiAND_%s", processSelected.Data()), fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                   labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-  
+      }
       CutFlow |=  (1<<5);
-
-        
+      //      QUIII
+      if(!(((cluPosRel[0].Perp() > fGeneralInfo->GetRadiusMin() - fSafeSpaceMargin && cluPosRel[0].Perp() < fGeneralInfo->GetRadiusMax()) && (cluPosRel[1].Perp() > fGeneralInfo->GetRadiusMin() - fSafeSpaceMargin)) || ((cluPosRel[1].Perp() > fGeneralInfo->GetRadiusMin() - fSafeSpaceMargin && cluPosRel[1].Perp() < fGeneralInfo->GetRadiusMax()) && (cluPosRel[0].Perp() > fGeneralInfo->GetRadiusMin() - fSafeSpaceMargin))))
 
       //RMin cut
-      if (cluPosRel[0].Perp() > fGeneralInfo->GetRadiusMin() - fSafeSpaceMargin || cluPosRel[1].Perp() > fGeneralInfo->GetRadiusMin() - fSafeSpaceMargin)
-          fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_DTHEVsDPHIAbs_RMinOR"),
-                                 fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
-                                 labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-      if (cluPosRel[0].Perp() < fGeneralInfo->GetRadiusMin() - fSafeSpaceMargin || cluPosRel[1].Perp() < fGeneralInfo->GetRadiusMin() - fSafeSpaceMargin){
-      continue; 
-      }
+      
+      // if (cluPosRel[0].Perp() < fGeneralInfo->GetRadiusMin() - fSafeSpaceMargin || cluPosRel[1].Perp() < fGeneralInfo->GetRadiusMin() - fSafeSpaceMargin){
+      // continue; 
+      // }
       fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_DTHEVsDPHIAbs_RMinAND"),
                                  fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                  labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED))
+      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED)){
       fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_DTHEVsDPHIAbs_RMinAND_%s", processSelected.Data()), fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                   labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-    
-
+      }
 
       CutFlow |=  (1<<6);
 
 
       //RMax cut
-      if (cluPosRel[0].Perp() < fGeneralInfo->GetRadiusMax() || cluPosRel[1].Perp() < fGeneralInfo->GetRadiusMax())
-          fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_DTHEVsDPHIAbs_RMaxOR"),
-                                 fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
-                                 labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-      if (cluPosRel[0].Perp() > fGeneralInfo->GetRadiusMax() || cluPosRel[1].Perp() > fGeneralInfo->GetRadiusMax()){
+      
+      // if (cluPosRel[0].Perp() > fGeneralInfo->GetRadiusMax() || cluPosRel[1].Perp() > fGeneralInfo->GetRadiusMax()){
           
-      continue; 
-      }
+      // continue; 
+      // }
       fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_DTHEVsDPHIAbs_RMaxAND"),
                                  fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                  labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
       CutFlow |=  (1<<7);
-      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED))
+      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED)){
       fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_DTHEVsDPHIAbs_RMaxAND_%s", processSelected.Data()), fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                   labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
     
-
+      }
       
       //Min energy cut
-      if (cluEnergy[0] > fGeneralInfo->GetEnergyMin() * fSafeEnergyFactor || cluEnergy[1] > fGeneralInfo->GetEnergyMin() * fSafeEnergyFactor)
       
-      fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_DTHEVsDPHIAbs_EMinOR"),
-                                 fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
-                                 labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
 
       if (cluEnergy[0] < fGeneralInfo->GetEnergyMin() * fSafeEnergyFactor ||  cluEnergy[1] < fGeneralInfo->GetEnergyMin() * fSafeEnergyFactor){
-      
       continue;
       }
+  
       fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_DTHEVsDPHIAbs_EMinAND"),
                                  fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                  labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED))
+      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED)){
         fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_DTHEVsDPHIAbs_EMinAND_%s", processSelected.Data()), fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                   labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-    
+      }
 
       CutFlow |=  (1<<8);
       //Max energy cut
-      if (cluEnergy[0] < fGeneralInfo->GetEnergyMax() / fSafeEnergyFactor || cluEnergy[1] < fGeneralInfo->GetEnergyMax() / fSafeEnergyFactor)
-      
-      fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_DTHEVsDPHIAbs_EMaxOR"),
-                                 fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
-                                 labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
+  
 
       if (cluEnergy[0] > fGeneralInfo->GetEnergyMax() / fSafeEnergyFactor || cluEnergy[1] > fGeneralInfo->GetEnergyMax() / fSafeEnergyFactor){
       
@@ -1750,30 +1752,141 @@ Int_t ECalSel::TwoClusters_couples(){
                                  fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                  labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
 
-      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED))
+      if (fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED)){
         fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_DTHEVsDPHIAbs_EMaxAND_%s", processSelected.Data()), fabs(labMomentaCM[0].Vect().Phi() - labMomentaCM[1].Vect().Phi()),
                                   labMomentaCM[0].Vect().Theta() + labMomentaCM[1].Vect().Theta(), 1.);
-    
+      }
       CutFlow |=  (1<<9);
 
      
     TVector2 xyclu[2];
       xyclu[0].Set(cluPos[0].X(), cluPos[0].Y());
       xyclu[1].Set(cluPos[1].X(), cluPos[1].Y());
+      // TLorentzVector cluP4[2];
+      // cluP4[0].SetXYZT(labMomenta[0].X(), labMomenta[0].Y(), labMomenta[0].Z(), cluEnergy[0]);
+      // cluP4[1].SetXYZT(labMomenta[1].X(), labMomenta[1].Y(), labMomenta[1].Z(), cluEnergy[1]);
 
+      TLorentzVector InvMass = labMomenta[0]+labMomenta[1];
+
+      fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_ESeed"), fECal_hitEvent->Hit( tempClu[0]->GetSeed())->GetEnergy(), 1.);
+      fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_ESeed"), fECal_hitEvent->Hit( tempClu[1]->GetSeed())->GetEnergy(), 1.);
       fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_ESum"), cluEnergy[0]+cluEnergy[1], 1.);
+      fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_InvMass"), InvMass.M(), 1.);
+      fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_InvMassvsESum"), cluEnergy[0]+cluEnergy[1], InvMass.M(), 1.);
+      fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_ESumExp"), pg[0]+pg[1], 1.);
       fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_Theta1"),labMomentaCM[0].Vect().Theta() , 1.);
       fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_Theta2"), labMomentaCM[1].Vect().Theta(), 1.);
       fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_Phi1"),labMomentaCM[0].Vect().Phi(), 1.);
       fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_Phi2"), labMomentaCM[1].Vect().Phi(), 1.);
       fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_COGYX"), cog.X(), cog.Y(), 1.);
       fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_R1"), xyclu[0].Mod(), 1.);
+      fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_E1vsR1"), cluEnergy[0], xyclu[0].Mod(), 1.);
       fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_R2"), xyclu[1].Mod(), 1.);
+      fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_E2vsR2"),cluEnergy[1], xyclu[1].Mod(), 1.);
+      fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_NCells1"),tempClu[0]->GetNHitsInClus(), 1.);
+      fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_NCells1vsR1"),xyclu[0].Mod(), tempClu[0]->GetNHitsInClus(), 1.);
+      fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_NCells2"),tempClu[1]->GetNHitsInClus(), 1.);
+      fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_NCells2vsR2"),xyclu[1].Mod(),tempClu[1]->GetNHitsInClus(), 1.);
+      fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_EMeasvsEExp"), cluEnergy[0], pg[0], 1.);
+      fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_EMeasvsEExp"), cluEnergy[1], pg[1], 1.);
+      
+      
+      if(fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED) && processSelected.CompareTo("Babayaga")==0){
+        fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_NCells2vsR2_Babayaga"),xyclu[1].Mod(),tempClu[1]->GetNHitsInClus(), 1.);
+        fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_E2vsR2_Babayaga"),cluEnergy[1], xyclu[1].Mod(), 1.);
+        fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EMeasvsEExp_Babayaga"), cluEnergy[0], pg[0], 1.);
+        fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EMeasvsEExp_Babayaga"), cluEnergy[1], pg[1], 1.);
+
+        TMCVertex *mcVtx = fEvent->MCTruthEvent->Vertex(fMCTruthECal->GetVtxFromCluID((int)clupairs->first));
+        std::pair<Int_t, Int_t> mcOPartcles;
+
+          mcOPartcles = fMCTruthECal->GetCluPcleCorr(fMCTruthECal->GetVtxFromCluID((int)clupairs->first));
+          TMCParticle *pcleOut[2];
+
+          if (mcOPartcles.first == clupairs->first){
+            pcleOut[0] = mcVtx->ParticleOut(0);
+            pcleOut[1] = mcVtx->ParticleOut(1);
+          } else if (mcOPartcles.second == clupairs->first){
+            pcleOut[1] = mcVtx->ParticleOut(0);
+            pcleOut[0] = mcVtx->ParticleOut(1);
+          }else
+            continue;
+        fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EExpvsETrue_Babayaga"), pcleOut[0]->GetEnergy(), pg[0], 1.);
+        fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EExpvsETrue_Babayaga"), pcleOut[1]->GetEnergy(), pg[1], 1.);
+        TLorentzVector InvMassBBY, pP4[2];
+        pP4[0].SetPxPyPzE(pcleOut[0]->GetMomentumX(), pcleOut[0]->GetMomentumY(), pcleOut[0]->GetMomentumZ(), pcleOut[0]->GetEnergy());
+        pP4[1].SetPxPyPzE(pcleOut[1]->GetMomentumX(), pcleOut[1]->GetMomentumY(), pcleOut[1]->GetMomentumZ(), pcleOut[1]->GetEnergy());
+        InvMassBBY = pP4[0]+pP4[1];
+        fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_InvMass_True_Babayaga"), InvMassBBY.M(),1.);
+
+        fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_Px_Babayaga"), pcleOut[0]->GetMomentumX()-labMomenta[0].X(), 1.);
+        fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_Px_Babayaga"), pcleOut[1]->GetMomentumX()-labMomenta[1].X(), 1.);
+
+        fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_Py_Babayaga"), pcleOut[0]->GetMomentumY()-labMomenta[0].Y(), 1.);
+        fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_PyvsY_Babayaga"), cluPos[0].Y(), (pcleOut[0]->GetMomentumY()-labMomenta[0].Y()), 1.);
+        fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_Py_Babayaga"), pcleOut[1]->GetMomentumY()-labMomenta[1].Y(), 1.);
+        fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_PyvsY_Babayaga"), cluPos[1].Y(),  pcleOut[1]->GetMomentumY()-labMomenta[1].Y(), 1.);
+
+        fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_Pz_Babayaga"), pcleOut[0]->GetMomentumZ()-labMomenta[0].Z(), 1.);
+        fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_Pz_Babayaga"), pcleOut[1]->GetMomentumZ()-labMomenta[1].Z(), 1.);
+       
+     
+      } 
 
 
+      if(fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED) && processSelected.CompareTo("BabayagaGG")==0){
+          fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_NCells2vsR2_BabayagaGG"),xyclu[1].Mod(),tempClu[1]->GetNHitsInClus(), 1.);
+          fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_E2vsR2_BabayagaGG"),cluEnergy[1], xyclu[1].Mod(), 1.);
+          fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EMeasvsEExp_BabayagaGG"), cluEnergy[0], pg[0], 1.);
+          fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EMeasvsEExp_BabayagaGG"), cluEnergy[1], pg[1], 1.);
+          TMCVertex *mcVtx = fEvent->MCTruthEvent->Vertex(fMCTruthECal->GetVtxFromCluID((int)clupairs->first));
+
+          std::pair<Int_t, Int_t> mcOPartcles;
+
+          mcOPartcles = fMCTruthECal->GetCluPcleCorr(fMCTruthECal->GetVtxFromCluID((int)clupairs->first));
+          TMCParticle *pcleOut[2];
+
+          if (mcOPartcles.first == clupairs->first){
+            pcleOut[0] = mcVtx->ParticleOut(0);
+            pcleOut[1] = mcVtx->ParticleOut(1);
+          } else if (mcOPartcles.second == clupairs->first){
+            pcleOut[1] = mcVtx->ParticleOut(0);
+            pcleOut[0] = mcVtx->ParticleOut(1);
+          }else
+            continue;
+          // TMCParticle *pcleOut[2];
+          // pcleOut[0] = mcVtx->ParticleOut(0);
+          // pcleOut[1] = mcVtx->ParticleOut(1);
+          // if(pcleOut[1]->GetEnergy() > pcleOut[0]->GetEnergy()){
+          //   pcleOut[0] = mcVtx->ParticleOut(1);
+          //   pcleOut[1] = mcVtx->ParticleOut(0);
+          // }
+          fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EExpvsETrue_BabayagaGG"), pcleOut[0]->GetEnergy(), pg[0], 1.);
+          fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EExpvsETrue_BabayagaGG"), pcleOut[1]->GetEnergy(), pg[1], 1.);
+      }
+      for(int ihit =0; ihit< tempClu[0]->GetNHitsInClus(); ihit++){
+          int hitel = tempClu[0]->GetHitVecInClus().at(ihit);
+          TRecoVHit* hit = fECal_hitEvent->Hit(hitel);
+          fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_EHit1vsR1"),xyclu[0].Mod(),hit->GetEnergy(), 1.);
+          if(fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED) && processSelected.CompareTo("Babayaga")==0) fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EHit1vsR1_Babayaga"),xyclu[0].Mod(),hit->GetEnergy(), 1.);
+          if(fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED) && processSelected.CompareTo("BabayagaGG")==0) fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EHit1vsR1_BabayagaGG"),xyclu[0].Mod(),hit->GetEnergy(), 1.);
+          
+      }
+      for(int ihit =0; ihit< tempClu[1]->GetNHitsInClus(); ihit++){
+          int hitel = tempClu[1]->GetHitVecInClus().at(ihit);
+          TRecoVHit* hit = fECal_hitEvent->Hit(hitel);
+          fhSvcVal->FillHisto2List("ECalSelTwoClu", Form("ECal_TC_EHit2vsR2"),xyclu[1].Mod(),hit->GetEnergy(), 1.);
+          if(fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED) && processSelected.CompareTo("Babayaga")==0) fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EHit2vsR2_Babayaga"),xyclu[1].Mod(),hit->GetEnergy(), 1.);
+          if(fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED) && processSelected.CompareTo("BabayagaGG")==0) fhSvcVal->FillHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EHit2vsR2_BabayagaGG"),xyclu[1].Mod(),hit->GetEnergy(), 1.);
+          
+      }
 
       if(fEvent->RecoEvent->GetEventStatusBit(TRECOEVENT_STATUSBIT_SIMULATED)){
+        fhSvcVal->FillHistoList("ECalSelTwoClu", Form("ECal_TC_InvMass_%s", processSelected.Data()), InvMass.M(), 1.);
         fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_ESum_%s", processSelected.Data()), cluEnergy[0]+cluEnergy[1], 1.);
+        fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_ESumExp_%s", processSelected.Data()), pg[0]+pg[1], 1.);
+        fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_ESeed_%s", processSelected.Data()), fECal_hitEvent->Hit( tempClu[0]->GetSeed())->GetEnergy(), 1.);
+        fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_ESeed_%s", processSelected.Data()), fECal_hitEvent->Hit( tempClu[1]->GetSeed())->GetEnergy(), 1.);
         fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_Theta1_%s", processSelected.Data()),labMomentaCM[0].Vect().Theta() , 1.);
         fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_Theta2_%s", processSelected.Data()), labMomentaCM[1].Vect().Theta(), 1.);
         fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_Phi1_%s", processSelected.Data()),labMomentaCM[0].Vect().Phi(), 1.);
@@ -1783,7 +1896,7 @@ Int_t ECalSel::TwoClusters_couples(){
         fhSvcVal->FillHistoList("ECalSelTwoCluMC", Form("ECal_TC_R2_%s", processSelected.Data()), xyclu[1].Mod(), 1.);
       }
       
-      
+      //  std::cout<<"Event: "<<fRecoEvent->GetEventNumber()<<std::endl;
 
       ECalSelEvent *selev = new ECalSelEvent;
       selev->flagEv = ev_gg;
@@ -1820,8 +1933,8 @@ Int_t ECalSel::TwoClusters_couples(){
 
 Bool_t ECalSel::InitHistos()
 {
-  static int NprocessAvailable = 6;
-  TString processIDs[NprocessAvailable] = {"eIoni", "eBrem", "annihil", "Bhabha","Babayaga","NoVtx"};
+  static int NprocessAvailable = 7;
+  TString processIDs[NprocessAvailable] = {"eIoni", "eBrem", "annihil", "Bhabha","Babayaga", "BabayagaGG","NoVtx"};
 
   fhSvcVal->CreateList("ECalSel");
   fhSvcVal->CreateList("ECalSelMCTruth");
@@ -1957,11 +2070,12 @@ Bool_t ECalSel::InitHistos()
   Int_t Max_POT = 20500;
   Int_t NBinsPOT = (Max_POT - Min_POT) / 10;
 
-  fhSvcVal->BookHistoList("ECalSel", "NPoTLGCorr", NBinsPOT, Min_POT, Max_POT);
+  fhSvcVal->BookHistoList("ECalSelTwoClu", "NPoTLGCorr", NBinsPOT, Min_POT, Max_POT);
   fhSvcVal->BookHistoList("ECalSel", "NPoTLG_NO_Corr", NBinsPOT, Min_POT, Max_POT);
-  fhSvcVal->BookHistoList("ECalSel", "EnSignalBhabha", 100, 0., 300.);
+  fhSvcVal->BookHistoList("ECalSelTwoClu", "EnSignalBhabha", 100, 0., 300.);
   fhSvcVal->BookHistoList("ECalSel", "ECal_SC_NClusters_nocut", 50, 0, 50);
   fhSvcVal->BookHistoList("ECalSel", "ECal_SC_EClusters_nocut", 400, 0, 4000);
+  fhSvcVal->BookHistoList("ECalSel", "ECal_SC_EClusters_Rcut", 400, 0, 4000);
 
   fhSvcVal->BookHisto2List("ECalSel", "ECal_SC_DrVsDtAll", 400, -400, 400, 200, 0, 600.);
   fhSvcVal->BookHisto2List("ECalSel", "ECal_SC_DrVsDt", 400, -400, 400, 200, 0, 600.);
@@ -1982,30 +2096,58 @@ Bool_t ECalSel::InitHistos()
   fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_dr", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
   fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_dphi", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
   fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_dtheta", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-  fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_RMinOR", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
   fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_RMinAND", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-  fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_RMaxOR", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
   fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_RMaxAND", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-  fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_EMinOR", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
   fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_EMinAND", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-  fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_EMaxOR", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
   fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_EMaxAND", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-  fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_PhiOR", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
   fhSvcVal->BookHisto2List("ECalSelTwoClu", "ECal_TC_DTHEVsDPHIAbs_PhiAND", 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
   
+
+  fhSvcVal->BookHisto2List("ECalSelTwoClu", Form("ECal_TC_InvMassvsESum"), 200, 200, 400, 500, 0, 25);
+  fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_InvMass"), 500, 0, 25);
+  fhSvcVal->BookHistoList("ECalSelTwoCluMC", Form("ECal_TC_InvMass_True_Babayaga"), 500, 0, 25);
+  fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_ESeed"), 600, 0, 300);
   fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_ESum"), 600, 0, 600);
+  fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_ESumExp"), 600, 0, 600);
   fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_Theta1"),300, 0, TMath::Pi());
   fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_Theta2"),300, 0, TMath::Pi());
   fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_Phi1"),600, -TMath::Pi(), TMath::Pi());
   fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_Phi2"), 600, -TMath::Pi(), TMath::Pi());
   fhSvcVal->BookHisto2List("ECalSelTwoClu", Form("ECal_TC_COGYX"), 100, -200, 200, 100, -200, 200);
+  fhSvcVal->BookHisto2List("ECalSelTwoClu", Form("ECal_TC_E1vsR1"), 600, 0, 300, 500, 0, 500);
   fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_R1"), 500, 0, 500);
+  fhSvcVal->BookHisto2List("ECalSelTwoClu", Form("ECal_TC_E2vsR2"), 600, 0, 300, 500, 0, 500);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_E2vsR2_Babayaga"), 600, 0, 300, 500, 0, 500);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_E2vsR2_BabayagaGG"), 600, 0, 300, 500, 0, 500);
   fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_R2"), 500, 0, 500);
+  fhSvcVal->BookHisto2List("ECalSelTwoClu", Form("ECal_TC_NCells1vsR1"),500, 0, 500, 30, 0, 30);
+  fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_NCells1"), 30, 0, 30);
+  fhSvcVal->BookHisto2List("ECalSelTwoClu", Form("ECal_TC_NCells2vsR2"), 500, 0, 500, 30, 0, 30);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_NCells2vsR2_Babayaga"), 500, 0, 500, 30, 0, 30);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_NCells2vsR2_BabayagaGG"), 500, 0, 500, 30, 0, 30);
+  fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_NCells2"), 30, 0, 30);
+  fhSvcVal->BookHisto2List("ECalSelTwoClu", Form("ECal_TC_EHit1vsR1"), 500, 0, 500, 600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EHit1vsR1_Babayaga"), 500, 0, 500, 600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EHit1vsR1_BabayagaGG"), 500, 0, 500, 600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoClu", Form("ECal_TC_EHit2vsR2"), 500, 0, 500,  600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EHit2vsR2_Babayaga"), 500, 0, 500,  600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EHit2vsR2_BabayagaGG"), 500, 0, 500,  600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoClu", Form("ECal_TC_EMeasvsEExp"), 600, 0, 300,  600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EMeasvsEExp_Babayaga"), 600, 0, 300,  600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EExpvsETrue_Babayaga"), 600, 0, 300,  600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EMeasvsEExp_BabayagaGG"), 600, 0, 300,  600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EExpvsETrue_BabayagaGG"), 600, 0, 300,  600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoClu", Form("ECal_TC_EMeasvsEExp_dthedphi"), 600, 0, 300,  600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EMeasvsEExp_dthedphi_Babayaga"), 600, 0, 300,  600, 0, 300);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_EMeasvsEExp_dthedphi_BabayagaGG"), 600, 0, 300,  600, 0, 300);
 
+  fhSvcVal->BookHistoList("ECalSelTwoCluMC", Form("ECal_TC_Px_Babayaga"), 200, -10, 10);
+  fhSvcVal->BookHistoList("ECalSelTwoCluMC", Form("ECal_TC_Py_Babayaga"), 200, -10, 10);
+  fhSvcVal->BookHisto2List("ECalSelTwoCluMC", Form("ECal_TC_PyvsY_Babayaga"),600, -300, 300, 200, -10, 10);
+  fhSvcVal->BookHistoList("ECalSelTwoCluMC", Form("ECal_TC_Pz_Babayaga"), 600, -150, 150);
 
-  
-  static int NprocessAvailableTwoClu = 7;
-  TString processIDsTwoClu[NprocessAvailableTwoClu] = {"eIoni", "eBrem", "annihil", "Bhabha","Babayaga", "NoVtx", "Mixed"};
+  static int NprocessAvailableTwoClu = 8;
+  TString processIDsTwoClu[NprocessAvailableTwoClu] = {"eIoni", "eBrem", "annihil", "Bhabha","Babayaga", "BabayagaGG", "NoVtx", "Mixed"};
 
  for (int pid = 0; pid < NprocessAvailableTwoClu; pid++)
   {
@@ -2018,19 +2160,17 @@ Bool_t ECalSel::InitHistos()
     fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_E1VsE2_dr_%s", processIDsTwoClu[pid].Data()),400, 0, 400, 400, 0, 400);
     fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_dphi_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
     fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_dtheta_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_RMinOR_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_RMinAND_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_RMaxOR_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_RMaxAND_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_EMinOR_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_EMinAND_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_EMaxOR_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_EMaxAND_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
-    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_PhiOR_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
     fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_PhiAND_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
+    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_RMinAND_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
+    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_RMaxAND_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
+    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_EMinAND_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
+    fhSvcVal->BookHisto2List("ECalSelTwoCluMC" , Form("ECal_TC_DTHEVsDPHIAbs_EMaxAND_%s", processIDsTwoClu[pid].Data()), 600, 0., 2*TMath::Pi(), 600, 0., 2*TMath::Pi());
   
-  
+      fhSvcVal->BookHistoList("ECalSelTwoClu", Form("ECal_TC_InvMass_%s", processIDsTwoClu[pid].Data()), 500, 0, 25);
+
     fhSvcVal->BookHistoList("ECalSelTwoCluMC", Form("ECal_TC_ESum_%s", processIDsTwoClu[pid].Data()), 600, 0, 600);
+    fhSvcVal->BookHistoList("ECalSelTwoCluMC", Form("ECal_TC_ESumExp_%s", processIDsTwoClu[pid].Data()), 600, 0, 600);
+    fhSvcVal->BookHistoList("ECalSelTwoCluMC", Form("ECal_TC_ESeed_%s", processIDsTwoClu[pid].Data()), 600, 0, 300);
     fhSvcVal->BookHistoList("ECalSelTwoCluMC", Form("ECal_TC_Theta1_%s", processIDsTwoClu[pid].Data()),300,0, TMath::Pi());
     fhSvcVal->BookHistoList("ECalSelTwoCluMC", Form("ECal_TC_Theta2_%s", processIDsTwoClu[pid].Data()),300,0, TMath::Pi());
     fhSvcVal->BookHistoList("ECalSelTwoCluMC", Form("ECal_TC_Phi1_%s", processIDsTwoClu[pid].Data()),600, -TMath::Pi(), TMath::Pi());
@@ -2179,8 +2319,10 @@ Bool_t ECalSel::TagProbeEff_macro()
   if (fGeneralInfo->isMC() == true)
   {
     std::cout << "EofeIoni getter" << std::endl;
-    EofeIoni = (TH2D *)fileIn->Get("ECalSelMCTruth/ECal_TP_DEVsE_NOcut_tag_eIoni")->Clone();
-    EofAnnihil = (TH2D *)fileIn->Get("ECalSelMCTruth/ECal_TP_DEVsE_NOcut_tag_annihil")->Clone();
+    // EofeIoni = (TH2D *)fileIn->Get("ECalSelMCTruth/ECal_TP_DEVsE_NOcut_tag_eIoni")->Clone();
+    // EofAnnihil = (TH2D *)fileIn->Get("ECalSelMCTruth/ECal_TP_DEVsE_NOcut_tag_annihil")->Clone();
+    EofeIoni = (TH2D *)fileIn->Get("ECalSelMCTruth/ECal_TP_DEVsE_NOcut_tag_Babayaga")->Clone();
+    EofAnnihil = (TH2D *)fileIn->Get("ECalSelMCTruth/ECal_TP_DEVsE_NOcut_tag_BabayagaGG")->Clone();
   }
   // EofProbe_cut = (TH2D*) fileIn->Get("ECalSel/ECal_TP_DEVsE_cut_probe")->Clone();
   EofProbe_cut = (TH2D *)fileIn->Get("ECalSel/ECal_TP_DEVsE_cut_probe")->Clone();
