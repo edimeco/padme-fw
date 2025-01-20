@@ -386,7 +386,7 @@ ETagECalAss ETagAn::AssociateECalCluster(int indexCl, int timeOff){
 	}
       }
 	
-      if (((ich==bary) || (ich == bary + dchannelCut)) && dt > dtMin+timeOff*timeOffset && dt < dtMax+timeOff*timeOffset) { //in time matching
+      if (((ich==bary) || (ich == bary + dchannelCut)) && dt > dtMin+timeOff*timeOffset && dt < dtMax+timeOff*timeOffset && hitto->GetEnergy()> 0.5) { //in time matching
 	if (timeOff == 0) { // no offset
 
 	  fhSvcVal->FillHisto2List("ETagAn",Form("ECal_ETagHits_%sCh_%d_Evsr",fLabel[lr].Data(),ich), sipmDist[lr], hitto->GetEnergy());

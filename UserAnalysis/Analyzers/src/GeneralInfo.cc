@@ -165,7 +165,7 @@ void GeneralInfo::EvalBeamProperties(){
 
   fBoostMom.SetXYZ(fCOGAtECal.X()-fRTarg.X(),fCOGAtECal.Y()-fRTarg.Y(),fCOGAtECal.Z()-fRTarg.Z());
   fBoostMom *= (fBeta/fBoostMom.Mag());
-fRadiusMax = 270.0;
+  fRadiusMax = 270.0;
   //fRadiusMax = 270.;//304.5; // in the past, we used 300 mm
 
   // if K = RMax/D is the max tangent in the lab, pi/2 - t < q*/2 < t, where t = atan(gamma RMax/D) must be > pi/4
@@ -230,6 +230,7 @@ void GeneralInfo::RetrieveDBInfo(int runID){
     // might interpolate if info not available
 
     fCalibEnergyFactor = fOfflineServerDB->getCalibEnergyFactor(runID);
+    std::cout<<"Value EScale: "<<fCalibEnergyFactor<<std::endl;
     fIsCalibEnergyAvailable = fOfflineServerDB->isCalibEnergyAvailable(runID);
     // might interpolate if info not available
 

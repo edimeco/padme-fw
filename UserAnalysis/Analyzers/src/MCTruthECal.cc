@@ -130,7 +130,7 @@ Bool_t MCTruthECal::InitHistos(){
   fHS->BookHistoList("MCTruthECal","EPcleAss_Bhabha",100,0,400);
   fHS->BookHistoList("MCTruthECal","EPcleAss_Babayaga",100,0,400);
   fHS->BookHistoList("MCTruthECal","EPcleAss_BabayagaGG",100,0,400);
-  fHS->BookHistoList("MCTruthECal","ETrue_Babayaga",400,100,300);
+  fHS->BookHistoList("MCTruthECal","ETrue_Babayaga",100,14,20);
   fHS->BookHistoList("MCTruthECal","EReco_Babayaga",400,100,300);
   fHS->BookHistoList("MCTruthECal","ETrue_Babayaga_atcalo",400,100,300);
   fHS->BookHistoList("MCTruthECal","EReco_Babayaga_atcalo",400,100,300);
@@ -283,7 +283,7 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
       
       //pcleOut, x e y all'ecal
       //loop on vtx pcle out
-      //if(mcVtx->GetProcess().CompareTo("Babayaga")!=0) continue;
+      //if(mcVtx->GetProcess().CompareTo("BabayagaGG")!=0) continue;
       TLorentzVector sumBabayaga;
       sumBabayaga.SetXYZT(0.,0.,0.,0.);
       Double_t enSum =0;
@@ -440,7 +440,7 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
           } //chiude Pcle
 
           //std::cout<<"s = "<<sumBabayaga.M()<<" en sum = "<<enSum<<" expected npcle out: "<<mcVtx->GetNParticleOut()<<" pcle at calo = "<<npclesass<<std::endl;
-          fHS->FillHistoList("MCTruthECal","ETrue_Babayaga",enTrue);
+          fHS->FillHistoList("MCTruthECal","ETrue_Babayaga",sumBabayaga.M());
           fHS->FillHisto2List("MCTruthECal","ETruevsNPcle_atcalo_Babayaga",npclesass, enTrue_atcalo);
           fHS->FillHistoList("MCTruthECal","ETrue_Babayaga_atcalo",enTrue_atcalo);
           fHS->FillHistoList("MCTruthECal","EReco_Babayaga",enSum);
@@ -454,7 +454,7 @@ Bool_t MCTruthECal::CorrelateVtxClu(){
                 fHS->FillHistoList("MCTruthECal","EPcleTagandProbe",fGeneralInfo->GetBeamEnergy()-EPcleOut[0]);
                 fHS->FillHistoList("MCTruthECal","EbeamE1E0Ass",fGeneralInfo->GetBeamEnergy()-EPcleOut[0]-EPcleOut[1]);
                 fHS->FillHistoList("MCTruthECal",Form("EbeamE1E0Ass_%s",mcVtx->GetProcess().Data()),fGeneralInfo->GetBeamEnergy()-EPcleOut[0]-EPcleOut[1]);
-                if(mcVtx->GetProcess().CompareTo("eIoni")==0){
+                if(mcVtx->GetProcess().CompareTo("Bhabha")==0){
                   fHS->FillHisto2List("MCTruthECal","R1vsR2_eIoni",cluPosOutRel[0].Perp(), cluPosOutRel[1].Perp());
                   fHS->FillHisto2List("MCTruthECal","E1vsR1_eIoni",ECluOut[0], cluPosOutRel[0].Perp());
                   fHS->FillHisto2List("MCTruthECal","E2vsR2_eIoni",ECluOut[1], cluPosOutRel[1].Perp());

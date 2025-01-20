@@ -187,6 +187,8 @@ Bool_t DataQuality::Process(){
 }
 
 Bool_t DataQuality::Finalize(){
+
+  // return false;
 // 
 // 
 // qui i Double_t* e gli Int_t* devono essere scritti in uscita in forma di TGraph* (histoService gestisce il salvare i TGraph*) 
@@ -231,7 +233,7 @@ if(!fHistoMode){
 std::cout<<"Data Quality TH1D plots filled "<<std::endl;
 }
 
-if(fHistoMode){
+if(fHistoMode && !fGeneralInfo->isMC()){
   TGraphErrors *gPoTratio = new TGraphErrors();
   gPoTratio->SetName("PoTRatio");
   TGraphErrors *gPoTLG = new TGraphErrors();

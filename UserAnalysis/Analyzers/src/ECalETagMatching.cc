@@ -92,7 +92,7 @@ Int_t ECalETagMatching::ECalETagMatch(){
       
 
 
-    if((ECalClu[0]->nAss[0]==0 && ECalClu[0]->nAss[1]==0) && (ECalClu[1]->nAss[0]==0 && ECalClu[1]->nAss[1]==0)){
+    if((ECalClu[0]->nAss[0]<3 && ECalClu[0]->nAss[1]<3) && (ECalClu[1]->nAss[0]<3 && ECalClu[1]->nAss[1]<3)){
         	
           double eff1=1, eff2=1;
           // TFile *fEffETag = new TFile("/home/dimeco/calibTools/padme-fw/UserAnalysis/efftpgg.root");
@@ -127,7 +127,7 @@ Int_t ECalETagMatching::ECalETagMatch(){
 
 
     }else if((ECalClu[0]->assType & (1<<kSingleSideMatch))>0 && (ECalClu[1]->assType & (1<<kSingleSideMatch))>0){
-          fhSvcVal->FillHistoList("ECalETagMatching",Form("ECalETag_bhabha"),ECalEv->totalE); 
+          fhSvcVal->FillHistoList("ECalETagMatching",Form("ECalETag_bhabha"),ECalEv->totalE);
           fhSvcVal->FillHisto2List("ECalETagMatching","ECalETag_DTHEVsDPHIAbs_bhabha",ECalEv->phi, ECalEv->theta );
           fhSvcVal->FillHisto2List("ECalETagMatching", "ECal_SC_yvsx_clu0_bhabha", cluPos[0].X(), cluPos[0].Y());
           fhSvcVal->FillHisto2List("ECalETagMatching", "ECal_SC_yvsx_clu1_bhabha", cluPos[0].X(), cluPos[0].Y());
@@ -137,7 +137,7 @@ Int_t ECalETagMatching::ECalETagMatch(){
 
 
           ECalEv->flagEv = ev_ee;
-    }else if(((ECalClu[0]->assType & (1<<kSingleSideMatch))>0 && (ECalClu[1]->nAss[0]==0 && ECalClu[1]->nAss[1]==0)) ||((ECalClu[1]->assType & (1<<kSingleSideMatch))>0 && (ECalClu[0]->nAss[0]==0 && ECalClu[0]->nAss[1]==0))){
+    }else if(((ECalClu[0]->assType & (1<<kSingleSideMatch))>0 && (ECalClu[1]->nAss[0]<3 && ECalClu[1]->nAss[1]<30)) ||((ECalClu[1]->assType & (1<<kSingleSideMatch))>0 && (ECalClu[0]->nAss[0]<0 && ECalClu[0]->nAss[1]<0))){
           fhSvcVal->FillHistoList("ECalETagMatching",Form("ECalETag_brem"),ECalEv->totalE); 
           fhSvcVal->FillHisto2List("ECalETagMatching","ECalETag_DTHEVsDPHIAbs_brem",ECalEv->phi, ECalEv->theta );
           fhSvcVal->FillHisto2List("ECalETagMatching", "ECal_SC_yvsx_clu0_brem", cluPos[0].X(), cluPos[0].Y());
@@ -161,6 +161,18 @@ Int_t ECalETagMatching::ECalETagMatch(){
 
           ECalEv->flagEv = ev_unknown;
     }
+
+    if(ECalClu[0]->nAss[0]==1){
+              if(ECalClu[0]->closestSide ==0){
+              double en = ECalClu[0]->EAss[0];
+              fhSvcVal->FillHistoList("ECalETagMatching",Form("ECalETag_ETag1HitEnergy"),en); 
+              }
+    }else if (ECalClu[0]->nAss[0]>1){
+              if(ECalClu[0]->closestSide ==0){
+              double en = ECalClu[0]->EAss[0]/(double)(ECalClu[0]->nAss[0]);
+              fhSvcVal->FillHistoList("ECalETagMatching",Form("ECalETag_ETag2HitEnergy"),en); 
+              }
+    }
   }
   return 0;
 }
@@ -182,7 +194,7 @@ Bool_t ECalETagMatching::InitHistos()
   int  fNYBins = (fYMax - fYMin) / fYW;
 
   fhSvcVal->CreateList("ECalETagMatching");
-	fhSvcVal->BookHistoList("ECalETagMatching",Form("ECalETag_annihil"),400,0,400); 
+	fhSvcVal->BookHistoList("ECalETagMatching",Form("ECalETag_annihil"),600,0,600); 
 	fhSvcVal->BookHistoList("ECalETagMatching",Form("ECalETag_annihil_weighted"),400,0,400); 
 	fhSvcVal->BookHistoList("ECalETagMatching",Form("ECalETag_weights"),100,0,1); 
   fhSvcVal->BookHisto2List("ECalETagMatching","ECalETag_DTHEVsDPHIAbs_annihil", 800, 0.,4*TMath::Pi(), 800, 0., 4*TMath::Pi());
@@ -192,8 +204,9 @@ Bool_t ECalETagMatching::InitHistos()
   fhSvcVal->BookHisto2List("ECalETagMatching", Form("ECal_SC_DTHEVsPhi_Lab_annihil"), 900, -TMath::Pi(), TMath::Pi(), 900, 0., 3 * TMath::Pi());
   fhSvcVal->BookHisto2List("ECalETagMatching", Form("ECal_SC_DTHECMVsPhi_Lab_annihil"), 900, -TMath::Pi(), TMath::Pi(), 900, 0., TMath::Pi());
 
-
-	fhSvcVal->BookHistoList("ECalETagMatching",Form("ECalETag_bhabha"),400,0,400); 
+  fhSvcVal->BookHistoList("ECalETagMatching", "ECalETag_ETag1HitEnergy", 100, 0 ,10);
+  fhSvcVal->BookHistoList("ECalETagMatching", "ECalETag_ETag2HitEnergy", 100, 0 ,10);
+	fhSvcVal->BookHistoList("ECalETagMatching",Form("ECalETag_bhabha"),600,0,600); 
   fhSvcVal->BookHisto2List("ECalETagMatching","ECalETag_DTHEVsDPHIAbs_bhabha", 800, 0.,4*TMath::Pi(), 800, 0., 4*TMath::Pi());
   fhSvcVal->BookHisto2List("ECalETagMatching", "ECal_SC_yvsx_clu0_bhabha", fNXBins * 10, fXMin, fXMax, fNYBins * 10, fYMin, fYMax);
   fhSvcVal->BookHisto2List("ECalETagMatching", "ECal_SC_yvsx_clu1_bhabha", fNXBins * 10, fXMin, fXMax, fNYBins * 10, fYMin, fYMax);
@@ -202,7 +215,7 @@ Bool_t ECalETagMatching::InitHistos()
   fhSvcVal->BookHisto2List("ECalETagMatching", Form("ECal_SC_DTHECMVsPhi_Lab_bhabha"), 900, -TMath::Pi(), TMath::Pi(), 600, 0., 2 * TMath::Pi());
 
 
-	fhSvcVal->BookHistoList("ECalETagMatching",Form("ECalETag_brem"),400,0,400); 
+	fhSvcVal->BookHistoList("ECalETagMatching",Form("ECalETag_brem"),600,0,600); 
   fhSvcVal->BookHisto2List("ECalETagMatching","ECalETag_DTHEVsDPHIAbs_brem", 800, 0.,4*TMath::Pi(), 800, 0., 4*TMath::Pi());
   fhSvcVal->BookHisto2List("ECalETagMatching", "ECal_SC_yvsx_clu0_brem", fNXBins * 10, fXMin, fXMax, fNYBins * 10, fYMin, fYMax);
   fhSvcVal->BookHisto2List("ECalETagMatching", "ECal_SC_yvsx_clu1_brem", fNXBins * 10, fXMin, fXMax, fNYBins * 10, fYMin, fYMax);
@@ -211,7 +224,7 @@ Bool_t ECalETagMatching::InitHistos()
   fhSvcVal->BookHisto2List("ECalETagMatching", Form("ECal_SC_DTHECMVsPhi_Lab_brem"), 900, -TMath::Pi(), TMath::Pi(), 900, 0., 2 * TMath::Pi());
 
 
-	fhSvcVal->BookHistoList("ECalETagMatching",Form("ECalETag_noAss"),400,0,400); 
+	fhSvcVal->BookHistoList("ECalETagMatching",Form("ECalETag_noAss"),600,0,600); 
   fhSvcVal->BookHisto2List("ECalETagMatching","ECalETag_DTHEVsDPHIAbs_noAss", 800, 0.,4*TMath::Pi(), 800, 0., 4*TMath::Pi());
   fhSvcVal->BookHisto2List("ECalETagMatching", "ECal_SC_yvsx_clu0_noAss", fNXBins * 10, fXMin, fXMax, fNYBins * 10, fYMin, fYMax);
   fhSvcVal->BookHisto2List("ECalETagMatching", "ECal_SC_yvsx_clu1_noAss", fNXBins * 10, fXMin, fXMax, fNYBins * 10, fYMin, fYMax);

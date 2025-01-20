@@ -163,7 +163,8 @@ private:
   Double_t fSigmaDPhi = 0.1105; //rad
   Double_t fSigmaE; //defined with Ebeam
   Double_t fSigmaCut =3;
-
+  Double_t HitAvgEn =0;
+  Double_t NPoTAvg =0;
   TFile *fileIn;
   const double cellSize = 21+0.12;//mm + crystal gap                                                                                                                                                                        
   const int ncells = 29; // per row or column                                                                                                                                                            
